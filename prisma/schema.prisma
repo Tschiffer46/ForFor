@@ -1,0 +1,214 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  TEAM_MEMBER
+}
+
+enum OrderStatus {
+  BETALD
+  OBETALD
+}
+
+// Förening (Club)
+model Forening {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teams       Lag[]
+  products    Produkt[]
+  orderRounds Saljrunda[]
+  users       Anvandare[]
+
+  @@map("foreningar")
+}
+
+// Produkt (Product)
+model Produkt {
+  id          String  @id @default(cuid())
+  namn        String
+  beskrivning String?
+  pris        Int // Price in SEK (öre would be * 100, but using whole SEK)
+  bildUrl     String?
+
+  foreningId String
+  forening   Forening @relation(fields: [foreningId], references: [id], onDelete: Cascade)
+
+  orderItems OrderRad[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("produkter")
+}
+
+// Lag (Team)
+model Lag {
+  id   String @id @default(cuid())
+  namn String
+
+  foreningId String
+  forening   Forening @relation(fields: [foreningId], references: [id], onDelete: Cascade)
+
+  streets     Gata[]
+  teamMembers Anvandare[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("lag")
+}
+
+// Gata (Street)
+model Gata {
+  id   String @id @default(cuid())
+  namn String
+  stad String
+
+  lagId String
+  lag   Lag    @relation(fields: [lagId], references: [id], onDelete: Cascade)
+
+  addresses Adress[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gator")
+}
+
+// Adress (Address)
+model Adress {
+  id          String @id @default(cuid())
+  gatuadress  String
+  postnummer  String
+  stad        String
+
+  gataId String
+  gata   Gata   @relation(fields: [gataId], references: [id], onDelete: Cascade)
+
+  customers Kund[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("adresser")
+}
+
+// Kund (Customer)
+model Kund {
+  id            String  @id @default(cuid())
+  namn          String
+  telefon       String?
+  epost         String?
+  prenumeration Boolean @default(false) // 10% discount for full-year commitment
+
+  adressId String
+  adress   Adress @relation(fields: [adressId], references: [id], onDelete: Cascade)
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("kunder")
+}
+
+// Säljrunda (OrderRound)
+model Saljrunda {
+  id                String   @id @default(cuid())
+  namn              String
+  forsaljningStart  DateTime
+  forsaljningSlut   DateTime
+  leveransDatum     DateTime
+
+  foreningId String
+  forening   Forening @relation(fields: [foreningId], references: [id], onDelete: Cascade)
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("saljrundor")
+}
+
+// Beställning (Order)
+model Order {
+  id          String      @id @default(cuid())
+  status      OrderStatus @default(OBETALD)
+  totalBelopp Int // Total amount in SEK
+  swishQrCode String? // Base64 or URL to QR code
+
+  kundId String
+  kund   Kund   @relation(fields: [kundId], references: [id], onDelete: Cascade)
+
+  saljrundaId String
+  saljrunda   Saljrunda @relation(fields: [saljrundaId], references: [id], onDelete: Cascade)
+
+  saljareId String // TeamMember who made the sale
+  saljare   Anvandare @relation(fields: [saljareId], references: [id], onDelete: Cascade)
+
+  orderItems OrderRad[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("bestallningar")
+}
+
+// OrderRad (OrderItem)
+model OrderRad {
+  id               String  @id @default(cuid())
+  antal            Int
+  styckpris        Int // Unit price at time of order
+  rabattTillampad  Boolean @default(false) // Whether discount was applied
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  produktId String
+  produkt   Produkt @relation(fields: [produktId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("orderrader")
+}
+
+// Användare (User)
+model Anvandare {
+  id      String   @id @default(cuid())
+  namn    String
+  epost   String   @unique
+  telefon String?
+  roll    UserRole
+
+  foreningId String
+  forening   Forening @relation(fields: [foreningId], references: [id], onDelete: Cascade)
+
+  lagId String? // Optional, only for team members
+  lag   Lag?    @relation(fields: [lagId], references: [id], onDelete: SetNull)
+
+  // For magic link authentication (team members)
+  magicLinkToken  String?   @unique
+  magicLinkExpiry DateTime?
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("anvandare")
+}
