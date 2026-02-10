@@ -1,10 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { formatCurrency } from '@/lib/utils'
-import { Printer } from 'lucide-react'
+import { PrintButton } from '@/components/admin/print-button'
 
 export default async function LeveranslistorPage() {
   const user = await getCurrentUser()
@@ -36,7 +35,6 @@ export default async function LeveranslistorPage() {
               },
             },
           },
-        },
         orderBy: {
           namn: 'asc',
         },
@@ -72,10 +70,7 @@ export default async function LeveranslistorPage() {
           <Card key={team.id} className="print:shadow-none">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>{team.namn} - Leveranslista</CardTitle>
-              <Button variant="outline" size="sm" onClick={() => window.print()}>
-                <Printer className="h-4 w-4 mr-2" />
-                Skriv ut
-              </Button>
+              <PrintButton />
             </CardHeader>
             <CardContent className="space-y-6">
               {streetsWithOrders.map((street) => (
