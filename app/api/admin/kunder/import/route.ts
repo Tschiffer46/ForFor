@@ -144,7 +144,8 @@ export async function POST(request: NextRequest) {
         imported++
       } catch (error) {
         skipped++
-        errors.push(`Fel vid import av ${customerData.namn}: ${error}`)
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        errors.push(`Fel vid import av rad: ${errorMessage}`)
       }
     }
 

@@ -84,9 +84,9 @@ export function KundImport({ trigger }: KundImportProps) {
           })
           
           return {
-            namn: obj.namn || obj['namn'] || '',
-            telefon: obj.telefon || obj['telefon'] || '',
-            epost: obj.epost || obj['e-post'] || obj['epost'] || '',
+            namn: obj.namn || '',
+            telefon: obj.telefon || '',
+            epost: obj.epost || obj['e-post'] || '',
             gatuadress: obj.gatuadress || obj.adress || '',
             postnummer: obj.postnummer || '',
             stad: obj.stad || '',
@@ -146,9 +146,9 @@ export function KundImport({ trigger }: KundImportProps) {
           })
           
           return {
-            namn: obj.namn || obj['namn'] || '',
-            telefon: obj.telefon || obj['telefon'] || '',
-            epost: obj.epost || obj['e-post'] || obj['epost'] || '',
+            namn: obj.namn || '',
+            telefon: obj.telefon || '',
+            epost: obj.epost || obj['e-post'] || '',
             gatuadress: obj.gatuadress || obj.adress || '',
             postnummer: obj.postnummer || '',
             stad: obj.stad || '',

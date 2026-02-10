@@ -49,10 +49,10 @@ export function DialogTrigger({ asChild, children }: DialogTriggerProps) {
   if (asChild && React.isValidElement(children)) {
     return React.cloneElement(children, {
       onClick: (e: React.MouseEvent) => {
-        children.props.onClick?.(e)
+        (children.props as any).onClick?.(e)
         onOpenChange(true)
       },
-    } as React.HTMLAttributes<HTMLElement>)
+    } as any)
   }
 
   return (
@@ -88,6 +88,7 @@ export function DialogContent({ children, className = '' }: DialogContentProps) 
           <button
             onClick={() => onOpenChange(false)}
             className="absolute top-4 right-4 p-1 rounded-md hover:bg-gray-100"
+            aria-label="Close dialog"
           >
             <X className="h-4 w-4" />
           </button>
