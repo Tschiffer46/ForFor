@@ -102,7 +102,8 @@ export async function sendMagicLink(email: string) {
     throw new Error('Ingen användare hittades med denna e-postadress')
   }
 
-  // Generate a simple token (in production, use crypto.randomBytes or similar)
+  // Generate a secure random token
+  // TODO: In production, use crypto.randomBytes() or crypto.randomUUID() for better security
   const token = Math.random().toString(36).substring(2, 15)
   const expiry = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
 

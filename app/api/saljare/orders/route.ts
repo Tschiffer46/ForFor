@@ -81,16 +81,13 @@ export async function POST(request: NextRequest) {
       where: { id: user.foreningId },
     })
 
-    let swishQrCode: string | undefined
-    try {
-      swishQrCode = await generateSwishQRCode({
-        amount: totalBelopp,
-        message: formatSwishMessage(`ORDER-${Date.now()}`, forening?.name || 'ForFor'),
-      })
-    } catch (error) {
+    const swishQrCode = await generateSwishQRCode({
+      amount: totalBelopp,
+      message: formatSwishMessage(`ORDER-${Date.now()}`, forening?.name || 'ForFor'),
+    }).catch((error) => {
       console.error('Error generating Swish QR code:', error)
-      // Continue without QR code if generation fails
-    }
+      return undefined
+    })
 
     // Create order
     const order = await prisma.order.create({

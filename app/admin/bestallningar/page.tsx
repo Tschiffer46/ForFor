@@ -52,13 +52,21 @@ export default async function BestallningarPage() {
     },
   })
 
-  // Calculate stats
-  let betalda = 0
-  let obetalda = 0
-  for (const order of orders) {
-    if (order.status === 'BETALD') betalda++
-    else if (order.status === 'OBETALD') obetalda++
-  }
+  // Calculate stats using aggregation for better performance
+  const [betaldaCount, obetaldaCount] = await Promise.all([
+    prisma.order.count({
+      where: {
+        saljare: { foreningId: user.foreningId },
+        status: 'BETALD',
+      },
+    }),
+    prisma.order.count({
+      where: {
+        saljare: { foreningId: user.foreningId },
+        status: 'OBETALD',
+      },
+    }),
+  ])
 
   return (
     <div className="space-y-6">
@@ -84,7 +92,7 @@ export default async function BestallningarPage() {
             <div className="text-center">
               <p className="text-sm text-gray-600">Betalda</p>
               <p className="text-3xl font-bold text-green-600 mt-1">
-                {betalda}
+                {betaldaCount}
               </p>
             </div>
           </CardContent>
@@ -94,7 +102,7 @@ export default async function BestallningarPage() {
             <div className="text-center">
               <p className="text-sm text-gray-600">Obetalda</p>
               <p className="text-3xl font-bold text-orange-600 mt-1">
-                {obetalda}
+                {obetaldaCount}
               </p>
             </div>
           </CardContent>
