@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    await authenticateWithBankID(personnummer)
+    // For MVP, we ignore the personnummer and just authenticate any admin
+    await authenticateWithBankID()
 
     return NextResponse.json({ success: true })
   } catch (error) {

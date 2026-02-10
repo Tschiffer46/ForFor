@@ -230,7 +230,7 @@ async function main() {
     },
   })
 
-  console.log('✅ Created sample customers')
+  console.log('✅ Created sample customers:', customer1.namn, customer2.namn, customer3.namn)
 
   // Create sample orders
   const order1 = await prisma.order.create({
@@ -279,7 +279,7 @@ async function main() {
     },
   })
 
-  console.log('✅ Created sample orders')
+  console.log('✅ Created sample orders:', order1.id, order2.id)
 
   console.log('🎉 Seed completed successfully!')
 }

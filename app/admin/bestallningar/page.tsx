@@ -3,6 +3,24 @@ import { Badge } from '@/components/ui/badge'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import type { Prisma } from '@prisma/client'
+
+type OrderWithRelations = Prisma.OrderGetPayload<{
+  include: {
+    kund: true
+    saljare: {
+      include: {
+        lag: true
+      }
+    }
+    saljrunda: true
+    orderItems: {
+      include: {
+        produkt: true
+      }
+    }
+  }
+}>
 
 export default async function BestallningarPage() {
   const user = await getCurrentUser()
@@ -11,7 +29,7 @@ export default async function BestallningarPage() {
     return null
   }
 
-  const orders = await prisma.order.findMany({
+  const orders: OrderWithRelations[] = await prisma.order.findMany({
     where: {
       saljare: { foreningId: user.foreningId },
     },
@@ -33,6 +51,14 @@ export default async function BestallningarPage() {
       createdAt: 'desc',
     },
   })
+
+  // Calculate stats
+  let betalda = 0
+  let obetalda = 0
+  for (const order of orders) {
+    if (order.status === 'BETALD') betalda++
+    else if (order.status === 'OBETALD') obetalda++
+  }
 
   return (
     <div className="space-y-6">
@@ -58,7 +84,7 @@ export default async function BestallningarPage() {
             <div className="text-center">
               <p className="text-sm text-gray-600">Betalda</p>
               <p className="text-3xl font-bold text-green-600 mt-1">
-                {orders.filter((o) => o.status === 'BETALD').length}
+                {betalda}
               </p>
             </div>
           </CardContent>
@@ -68,7 +94,7 @@ export default async function BestallningarPage() {
             <div className="text-center">
               <p className="text-sm text-gray-600">Obetalda</p>
               <p className="text-3xl font-bold text-orange-600 mt-1">
-                {orders.filter((o) => o.status === 'OBETALD').length}
+                {obetalda}
               </p>
             </div>
           </CardContent>

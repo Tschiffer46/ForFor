@@ -45,7 +45,7 @@ export default async function BestallningarPage() {
             <ShoppingCart className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <p className="text-gray-500">Du har inga beställningar ännu.</p>
             <p className="text-sm text-gray-400 mt-2">
-              Skapa din första beställning genom att klicka på "Ny Order" nedan.
+              Skapa din första beställning genom att klicka på &quot;Ny Order&quot; nedan.
             </p>
           </CardContent>
         </Card>
@@ -116,6 +116,7 @@ export default async function BestallningarPage() {
                     <p className="text-sm font-medium text-gray-700 mb-2">
                       Swish QR-kod:
                     </p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={order.swishQrCode}
                       alt="Swish QR code"

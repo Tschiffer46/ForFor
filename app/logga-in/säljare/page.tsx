@@ -47,7 +47,7 @@ export default function SeljarLoginPage() {
       if (response.ok) {
         router.push('/säljare')
       }
-    } catch (err) {
+    } catch {
       setError('Kunde inte logga in')
     }
   }

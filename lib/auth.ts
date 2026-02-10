@@ -70,7 +70,7 @@ export async function requireAuth(requiredRole?: UserRole) {
 }
 
 // Mock BankID authentication
-export async function authenticateWithBankID(personnummer: string) {
+export async function authenticateWithBankID() {
   // In a real app, this would integrate with BankID
   // For now, just check if a user with admin role exists
   const user = await prisma.anvandare.findFirst({

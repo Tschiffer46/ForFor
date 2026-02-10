@@ -21,7 +21,7 @@ export default async function LeveranslistorPage() {
         include: {
           addresses: {
             include: {
-              kunder: {
+              customers: {
                 include: {
                   orders: {
                     include: {
@@ -60,7 +60,7 @@ export default async function LeveranslistorPage() {
         // Filter streets that have customers with orders
         const streetsWithOrders = team.streets.filter((street) =>
           street.addresses.some((addr) =>
-            addr.kunder.some((kund) => kund.orders.length > 0)
+            addr.customers.some((kund) => kund.orders.length > 0)
           )
         )
 
@@ -85,7 +85,7 @@ export default async function LeveranslistorPage() {
                   </h3>
 
                   {street.addresses.map((address) => {
-                    const customersWithOrders = address.kunder.filter(
+                    const customersWithOrders = address.customers.filter(
                       (kund) => kund.orders.length > 0
                     )
 
@@ -158,7 +158,7 @@ export default async function LeveranslistorPage() {
         (team) =>
           !team.streets.some((street) =>
             street.addresses.some((addr) =>
-              addr.kunder.some((kund) => kund.orders.length > 0)
+              addr.customers.some((kund) => kund.orders.length > 0)
             )
           )
       ) && (
@@ -168,18 +168,6 @@ export default async function LeveranslistorPage() {
           </CardContent>
         </Card>
       )}
-
-      <style jsx global>{`
-        @media print {
-          body {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
     </div>
   )
 }

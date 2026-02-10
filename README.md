@@ -1,36 +1,322 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ForFor - Föreningsförsäljning
 
-## Getting Started
+ForFor is a web application designed for Swedish sports clubs (föreningar) to manage door-to-door sales campaigns. This MVP (Minimum Viable Product) helps clubs organize teams, manage customer addresses, create orders, and track sales of paper products sold in sacks (primarily toilet paper and paper towels).
 
-First, run the development server:
+## What is ForFor?
+
+ForFor makes it easy for sports clubs to run fundraising campaigns by selling paper products door-to-door. The application has two main interfaces:
+
+1. **Admin Interface** - For club administrators to manage teams, products, order rounds, and view reports
+2. **Team Member Interface** - For young salespeople (teenagers) to register orders while standing at a customer's door
+
+## Key Features
+
+- 🏢 **Multi-team Management** - Organize your club into teams with assigned streets
+- 📦 **Product Catalog** - Manage products sold in sacks with pricing
+- 🗓️ **Sales Rounds** - Define sales periods with start/end dates and delivery dates
+- 📍 **Address Management** - Import and organize customer addresses by street
+- 🛒 **Easy Order Creation** - Simple, mobile-friendly interface for team members
+- 💰 **Subscription Discounts** - 10% discount for customers with annual subscriptions
+- 📱 **Swish Integration** - Generate QR codes for easy mobile payments (mocked for MVP)
+- 📊 **Reports & Analytics** - Track sales, view statistics, and print delivery lists
+
+---
+
+## 🚀 Getting Started
+
+This guide will help you set up ForFor on your computer, even if you've never done this before!
+
+### Prerequisites
+
+Before you begin, you need to install these programs on your computer:
+
+1. **Node.js** (version 18 or higher)
+   - Go to https://nodejs.org/
+   - Download the "LTS" version (recommended for most users)
+   - Run the installer and follow the instructions
+   - To verify installation, open a terminal/command prompt and type: `node --version`
+
+2. **PostgreSQL** (database)
+   - Go to https://www.postgresql.org/download/
+   - Download and install PostgreSQL for your operating system
+   - During installation, remember the password you set for the "postgres" user
+   - The default port is 5432 (keep this unless you know what you're doing)
+
+3. **Git** (optional but recommended)
+   - Go to https://git-scm.com/downloads
+   - Download and install for your operating system
+
+---
+
+## 📥 Installation Steps
+
+### Step 1: Download the Code
+
+**Option A: Using Git (recommended)**
+1. Open a terminal/command prompt
+2. Navigate to where you want to store the project
+3. Run: `git clone https://github.com/Tschiffer46/ForFor.git`
+4. Navigate into the folder: `cd ForFor`
+
+**Option B: Download as ZIP**
+1. Go to the GitHub repository
+2. Click the green "Code" button
+3. Select "Download ZIP"
+4. Extract the ZIP file to a folder on your computer
+5. Open a terminal/command prompt in that folder
+
+### Step 2: Install Dependencies
+
+In your terminal (while inside the ForFor folder), run:
+
+```bash
+npm install
+```
+
+This will download all the necessary code libraries. It might take a few minutes.
+
+### Step 3: Set Up the Database
+
+1. **Create a database** in PostgreSQL:
+   - Open your PostgreSQL admin tool (pgAdmin or similar)
+   - Create a new database called `forfor`
+   
+   OR use the command line:
+   ```bash
+   createdb forfor
+   ```
+
+2. **Create environment file**:
+   - Make a copy of `.env.example` and name it `.env`
+   - Open `.env` in a text editor
+   - Update the `DATABASE_URL` with your PostgreSQL credentials:
+   ```
+   DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/forfor?schema=public"
+   ```
+   Replace `YOUR_PASSWORD` with the password you set during PostgreSQL installation
+
+### Step 4: Initialize the Database
+
+Run these commands one by one:
+
+```bash
+# Generate Prisma client
+npm run db:generate
+
+# Create database tables
+npm run db:push
+
+# Add sample data
+npm run db:seed
+```
+
+You should see messages confirming that:
+- Database tables were created
+- Sample data was added (1 club, 4 products, 2 teams, sample customers, etc.)
+
+---
+
+## 🏃‍♂️ Running the Application
+
+### Start the Development Server
+
+In your terminal, run:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+You should see a message like:
+```
+> Local: http://localhost:3000
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Open in Your Browser
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Open your web browser (Chrome, Firefox, Safari, etc.)
+2. Go to: http://localhost:3000
+3. You should see the ForFor welcome page!
 
-## Learn More
+### Login Credentials
 
-To learn more about Next.js, take a look at the following resources:
+The seed data creates these users for testing:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Admin Login** (Use any personnummer, like "199001011234"):
+- Email: admin@exempel.se
+- Go to: http://localhost:3000/logga-in/admin
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Team Member Login**:
+- Email: emma@exempel.se (for Lag A)
+- Email: erik@exempel.se (for Lag B)
+- Go to: http://localhost:3000/logga-in/säljare
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📱 Using the Application
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Admin Dashboard
+
+After logging in as admin, you can:
+- View sales statistics on the dashboard
+- Manage teams and assign streets
+- Add and edit products
+- Create sales rounds (försäljningsperioder)
+- View all orders and filter by status
+- Manage customer database
+- Print delivery lists organized by team and street
+
+### Team Member Interface
+
+After logging in as a team member (säljare), you can:
+- View your assigned addresses
+- Create new orders in 4 easy steps:
+  1. Select an address
+  2. Select or create a customer
+  3. Choose products and quantities
+  4. Review and confirm
+- View your order history
+- See sales statistics
+
+---
+
+## 🛠️ Common Tasks
+
+### Adding New Products
+
+1. Log in as admin
+2. Go to "Produkter" in the sidebar
+3. Click "Lägg till produkt"
+4. Fill in name, description, price, and optional image URL
+5. Save
+
+### Creating a New Sales Round
+
+1. Log in as admin
+2. Go to "Säljrundor"
+3. Click "Skapa ny säljrunda"
+4. Set the sales period (start and end dates)
+5. Set the delivery date
+6. Save
+
+### Importing Customers from Excel
+
+1. Prepare an Excel file (.xlsx) with these columns:
+   - Namn (Name)
+   - Telefon (Phone)
+   - Epost (Email)
+   - Gatuadress (Street Address)
+   - Postnummer (Postal Code)
+   - Stad (City)
+
+2. Log in as admin
+3. Go to "Kunder"
+4. Click "Importera kunder"
+5. Select your Excel file
+6. Review the preview
+7. Confirm import
+
+---
+
+## 🚢 Deploying to Vercel
+
+### Quick Deployment Steps
+
+1. **Create a Vercel account** at https://vercel.com/signup
+
+2. **Set up a production database**:
+   - You can use Vercel Postgres, Supabase, or any PostgreSQL provider
+   - Note the connection string
+
+3. **Deploy to Vercel**:
+   - Install Vercel CLI: `npm install -g vercel`
+   - Run: `vercel`
+   - Follow the prompts to link your project
+   - Add environment variable: `DATABASE_URL` with your production database URL
+   - Run: `vercel --prod` to deploy to production
+
+4. **Initialize production database**:
+   - After deployment, run migrations on production:
+   ```bash
+   npx prisma db push --preview-feature
+   npx prisma db seed
+   ```
+
+Your ForFor app is now live! 🎉
+
+---
+
+## 🔧 Troubleshooting
+
+### "Cannot connect to database"
+- Check that PostgreSQL is running
+- Verify your DATABASE_URL in `.env` is correct
+- Make sure the database `forfor` exists
+
+### "Port 3000 is already in use"
+- Another application is using port 3000
+- Stop that application or use a different port: `npm run dev -- -p 3001`
+
+### "Module not found" errors
+- Run `npm install` again
+- Delete `node_modules` folder and `package-lock.json`, then run `npm install`
+
+### Prisma errors
+- Try: `npm run db:generate`
+- Try: `npx prisma migrate reset` (warning: this deletes all data)
+
+---
+
+## 📚 Project Structure
+
+```
+forfor/
+├── app/                    # Next.js app directory
+│   ├── admin/             # Admin pages
+│   ├── säljare/           # Team member pages
+│   ├── api/               # API routes
+│   └── logga-in/          # Login pages
+├── components/            # Reusable UI components
+│   ├── ui/               # shadcn/ui components
+│   ├── admin/            # Admin-specific components
+│   └── säljare/          # Team member components
+├── lib/                  # Utility functions
+│   ├── prisma.ts        # Database client
+│   ├── auth.ts          # Authentication helpers
+│   └── swish.ts         # Swish QR code generation
+├── prisma/              # Database schema and seed
+│   ├── schema.prisma    # Data models
+│   └── seed.ts          # Sample data
+└── public/              # Static assets
+```
+
+---
+
+## 🆘 Getting Help
+
+If you run into issues:
+
+1. Check this README again carefully
+2. Search for the error message online
+3. Contact the development team
+4. Open an issue on GitHub: https://github.com/Tschiffer46/ForFor/issues
+
+---
+
+## 📝 License
+
+This project is created for Swedish sports clubs to manage their fundraising campaigns.
+
+---
+
+## 🙏 Acknowledgments
+
+Built with:
+- Next.js 14 (React framework)
+- Prisma (Database ORM)
+- Tailwind CSS (Styling)
+- shadcn/ui (UI components)
+- PostgreSQL (Database)
+
+---
+
+**Happy Selling! 🎯**

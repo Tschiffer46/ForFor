@@ -23,7 +23,7 @@ export default async function AdresserPage() {
     include: {
       addresses: {
         include: {
-          kunder: {
+          customers: {
             include: {
               orders: true,
             },
@@ -68,8 +68,7 @@ export default async function AdresserPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {street.addresses.map((address) => {
-                const hasCustomers = address.kunder.length > 0
-                const hasOrders = address.kunder.some((k) => k.orders.length > 0)
+                const hasCustomers = address.customers.length > 0
 
                 return (
                   <div
@@ -87,7 +86,7 @@ export default async function AdresserPage() {
 
                           {hasCustomers && (
                             <div className="mt-2 space-y-1">
-                              {address.kunder.map((customer) => (
+                              {address.customers.map((customer) => (
                                 <div
                                   key={customer.id}
                                   className="text-sm bg-blue-50 px-2 py-1 rounded"

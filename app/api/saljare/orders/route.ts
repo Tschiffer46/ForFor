@@ -49,12 +49,12 @@ export async function POST(request: NextRequest) {
     // Get products and calculate total
     const products = await prisma.produkt.findMany({
       where: {
-        id: { in: items.map((item: any) => item.produktId) },
+        id: { in: items.map((item: { produktId: string; antal: number }) => item.produktId) },
       },
     })
 
     let totalBelopp = 0
-    const orderItemsData = items.map((item: any) => {
+    const orderItemsData = items.map((item: { produktId: string; antal: number }) => {
       const product = products.find(p => p.id === item.produktId)
       if (!product) {
         throw new Error(`Product ${item.produktId} not found`)
