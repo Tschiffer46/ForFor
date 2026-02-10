@@ -3,7 +3,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
-import { Upload } from 'lucide-react'
+import { Upload, Edit, Trash2 } from 'lucide-react'
+import { KundImport } from '@/components/admin/kund-import'
+import { KundForm } from '@/components/admin/kund-form'
+import { DeleteButton } from '@/components/admin/delete-button'
 
 export default async function KunderPage() {
   const user = await getCurrentUser()
@@ -48,10 +51,14 @@ export default async function KunderPage() {
             Hantera kunder och importera från Excel
           </p>
         </div>
-        <Button>
-          <Upload className="h-4 w-4 mr-2" />
-          Importera kunder
-        </Button>
+        <KundImport
+          trigger={
+            <Button>
+              <Upload className="h-4 w-4 mr-2" />
+              Importera kunder
+            </Button>
+          }
+        />
       </div>
 
       {/* Summary */}
@@ -111,6 +118,9 @@ export default async function KunderPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Prenumeration
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Åtgärder
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -146,12 +156,41 @@ export default async function KunderPage() {
                         <Badge variant="outline">Nej</Badge>
                       )}
                     </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <KundForm
+                          customer={customer}
+                          trigger={
+                            <Button variant="ghost" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          }
+                        />
+                        <DeleteButton
+                          itemName={customer.namn}
+                          itemType="kund"
+                          onDelete={async () => {
+                            const response = await fetch(`/api/admin/kunder/${customer.id}`, {
+                              method: 'DELETE',
+                            })
+                            if (!response.ok) {
+                              throw new Error('Failed to delete customer')
+                            }
+                          }}
+                          trigger={
+                            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          }
+                        />
+                      </div>
+                    </td>
                   </tr>
                 ))}
 
                 {customers.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                    <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
                       Inga kunder ännu. Importera från Excel för att komma igång.
                     </td>
                   </tr>
