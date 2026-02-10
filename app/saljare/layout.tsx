@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
-import { SeljarBottomNav } from '@/components/säljare/bottom-nav'
+import { SeljarBottomNav } from '@/components/saljare/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { LogOut } from 'lucide-react'
 
@@ -12,7 +12,7 @@ export default async function SeljarLayout({
   const user = await getCurrentUser()
 
   if (!user || user.roll !== 'TEAM_MEMBER') {
-    redirect('/logga-in/säljare')
+    redirect('/logga-in/saljare')
   }
 
   const handleLogout = async () => {

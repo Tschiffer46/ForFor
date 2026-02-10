@@ -56,7 +56,7 @@ export default async function SeljarHomePage() {
           <p className="text-gray-700 text-lg">
             Redo att sälja? Börja med att registrera en ny beställning!
           </p>
-          <Link href="/säljare/ny-bestallning">
+          <Link href="/saljare/ny-bestallning">
             <Button size="lg" className="mt-4 w-full h-14 text-lg">
               Ny beställning
             </Button>
@@ -141,12 +141,12 @@ export default async function SeljarHomePage() {
           <CardTitle className="text-lg">Snabbåtgärder</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Link href="/säljare/adresser">
+          <Link href="/saljare/adresser">
             <Button variant="outline" className="w-full h-12 text-base" size="lg">
               Se mina adresser
             </Button>
           </Link>
-          <Link href="/säljare/bestallningar">
+          <Link href="/saljare/bestallningar">
             <Button variant="outline" className="w-full h-12 text-base" size="lg">
               Se mina beställningar
             </Button>
