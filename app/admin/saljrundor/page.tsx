@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { formatDate } from '@/lib/utils'
 import { Calendar } from 'lucide-react'
+import { SaljrundaForm } from '@/components/admin/saljrunda-form'
 
 export default async function SaljrundorPage() {
   const user = await getCurrentUser()
@@ -35,7 +36,7 @@ export default async function SaljrundorPage() {
           <h1 className="text-3xl font-bold">Säljrundor</h1>
           <p className="text-gray-600 mt-1">Hantera försäljningsperioder</p>
         </div>
-        <Button>Skapa ny säljrunda</Button>
+        <SaljrundaForm trigger={<Button>Skapa ny säljrunda</Button>} />
       </div>
 
       <div className="space-y-4">
@@ -90,9 +91,14 @@ export default async function SaljrundorPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      Redigera
-                    </Button>
+                    <SaljrundaForm
+                      saljrunda={round}
+                      trigger={
+                        <Button variant="outline" size="sm">
+                          Redigera
+                        </Button>
+                      }
+                    />
                     <Button variant="outline" size="sm">
                       Se beställningar
                     </Button>
@@ -108,7 +114,7 @@ export default async function SaljrundorPage() {
             <CardContent className="py-12 text-center">
               <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <p className="text-gray-500">Inga säljrundor skapade ännu</p>
-              <Button className="mt-4">Skapa din första säljrunda</Button>
+              <SaljrundaForm trigger={<Button className="mt-4">Skapa din första säljrunda</Button>} />
             </CardContent>
           </Card>
         )}

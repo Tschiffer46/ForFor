@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import Link from 'next/link'
 import { Users } from 'lucide-react'
+import { LagForm } from '@/components/admin/lag-form'
 
 export default async function LagsPage() {
   const user = await getCurrentUser()
@@ -34,7 +35,7 @@ export default async function LagsPage() {
           <h1 className="text-3xl font-bold">Lag</h1>
           <p className="text-gray-600 mt-1">Hantera lag och lagmedlemmar</p>
         </div>
-        <Button>Skapa nytt lag</Button>
+        <LagForm trigger={<Button>Skapa nytt lag</Button>} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -76,7 +77,7 @@ export default async function LagsPage() {
           <Card className="col-span-full">
             <CardContent className="py-12 text-center">
               <p className="text-gray-500">Inga lag skapade ännu</p>
-              <Button className="mt-4">Skapa ditt första lag</Button>
+              <LagForm trigger={<Button className="mt-4">Skapa ditt första lag</Button>} />
             </CardContent>
           </Card>
         )}

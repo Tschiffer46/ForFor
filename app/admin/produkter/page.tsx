@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { formatCurrency } from '@/lib/utils'
 import { Package } from 'lucide-react'
+import { ProduktForm } from '@/components/admin/produkt-form'
+import { DeleteButton } from '@/components/admin/delete-button'
 
 export default async function ProdukterPage() {
   const user = await getCurrentUser()
@@ -27,7 +29,7 @@ export default async function ProdukterPage() {
           <h1 className="text-3xl font-bold">Produkter</h1>
           <p className="text-gray-600 mt-1">Hantera produkter som säljs i säck</p>
         </div>
-        <Button>Lägg till produkt</Button>
+        <ProduktForm trigger={<Button>Lägg till produkt</Button>} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -54,12 +56,31 @@ export default async function ProdukterPage() {
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1">
-                  Redigera
-                </Button>
-                <Button variant="ghost" size="sm" className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50">
-                  Ta bort
-                </Button>
+                <ProduktForm
+                  product={product}
+                  trigger={
+                    <Button variant="outline" size="sm" className="flex-1">
+                      Redigera
+                    </Button>
+                  }
+                />
+                <DeleteButton
+                  itemName={product.namn}
+                  itemType="produkt"
+                  onDelete={async () => {
+                    const response = await fetch(`/api/admin/produkter/${product.id}`, {
+                      method: 'DELETE',
+                    })
+                    if (!response.ok) {
+                      throw new Error('Failed to delete product')
+                    }
+                  }}
+                  trigger={
+                    <Button variant="ghost" size="sm" className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50">
+                      Ta bort
+                    </Button>
+                  }
+                />
               </div>
             </CardContent>
           </Card>
@@ -70,7 +91,7 @@ export default async function ProdukterPage() {
             <CardContent className="py-12 text-center">
               <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <p className="text-gray-500">Inga produkter skapade ännu</p>
-              <Button className="mt-4">Lägg till din första produkt</Button>
+              <ProduktForm trigger={<Button className="mt-4">Lägg till din första produkt</Button>} />
             </CardContent>
           </Card>
         )}
