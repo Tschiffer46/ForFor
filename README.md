@@ -200,20 +200,18 @@ After logging in as a team member (säljare), you can:
 
 ### Importing Customers from Excel
 
-1. Prepare an Excel file (.xlsx) with these columns:
-   - Namn (Name)
-   - Telefon (Phone)
-   - Epost (Email)
-   - Gatuadress (Street Address)
-   - Postnummer (Postal Code)
-   - Stad (City)
+**Note:** Excel import functionality is planned for a future update. The UI button exists but the backend implementation is pending due to security considerations with Excel parsing libraries.
 
-2. Log in as admin
-3. Go to "Kunder"
-4. Click "Importera kunder"
-5. Select your Excel file
-6. Review the preview
-7. Confirm import
+For now, you can:
+- Add customers manually through the admin interface
+- Add customers during order creation (team member interface)
+- Directly insert data into the database using Prisma Studio or SQL
+
+When implemented, the feature will support:
+1. Upload Excel file (.xlsx) with columns: Namn, Telefon, Epost, Gatuadress, Postnummer, Stad
+2. Preview imported data
+3. Map to existing streets/teams
+4. Bulk import with validation
 
 ---
 
