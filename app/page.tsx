@@ -12,7 +12,7 @@ export default async function Home() {
     if (user.roll === 'ADMIN') {
       redirect('/admin')
     } else {
-      redirect('/säljare')
+      redirect('/saljare')
     }
   }
 
@@ -45,7 +45,7 @@ export default async function Home() {
               </Card>
             </Link>
 
-            <Link href="/logga-in/säljare" className="block">
+            <Link href="/logga-in/saljare" className="block">
               <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
                 <CardHeader>
                   <CardTitle className="text-xl">Säljare</CardTitle>

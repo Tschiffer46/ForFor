@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     await authenticateWithMagicLink(token)
 
     // Redirect to team member home
-    return NextResponse.redirect(new URL('/säljare', request.url))
+    return NextResponse.redirect(new URL('/saljare', request.url))
   } catch (error) {
     console.error('Magic link verification error:', error)
     return NextResponse.json(

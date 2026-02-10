@@ -8,22 +8,22 @@ import { Home, MapPin, ShoppingCart, List } from 'lucide-react'
 const navItems = [
   {
     title: 'Hem',
-    href: '/säljare',
+    href: '/saljare',
     icon: Home,
   },
   {
     title: 'Adresser',
-    href: '/säljare/adresser',
+    href: '/saljare/adresser',
     icon: MapPin,
   },
   {
     title: 'Ny Order',
-    href: '/säljare/ny-bestallning',
+    href: '/saljare/ny-bestallning',
     icon: ShoppingCart,
   },
   {
     title: 'Mina Orders',
-    href: '/säljare/bestallningar',
+    href: '/saljare/bestallningar',
     icon: List,
   },
 ]

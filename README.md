@@ -148,7 +148,7 @@ The seed data creates these users for testing:
 **Team Member Login**:
 - Email: emma@exempel.se (for Lag A)
 - Email: erik@exempel.se (for Lag B)
-- Go to: http://localhost:3000/logga-in/säljare
+- Go to: http://localhost:3000/logga-in/saljare
 
 ---
 
@@ -270,13 +270,13 @@ Your ForFor app is now live! 🎉
 forfor/
 ├── app/                    # Next.js app directory
 │   ├── admin/             # Admin pages
-│   ├── säljare/           # Team member pages
+│   ├── saljare/           # Team member pages
 │   ├── api/               # API routes
 │   └── logga-in/          # Login pages
 ├── components/            # Reusable UI components
 │   ├── ui/               # shadcn/ui components
 │   ├── admin/            # Admin-specific components
-│   └── säljare/          # Team member components
+│   └── saljare/          # Team member components
 ├── lib/                  # Utility functions
 │   ├── prisma.ts        # Database client
 │   ├── auth.ts          # Authentication helpers

@@ -192,7 +192,7 @@ export default function NyBestallningPage() {
       })
 
       if (res.ok) {
-        router.push('/säljare/bestallningar')
+        router.push('/saljare/bestallningar')
       } else {
         alert('Kunde inte skapa beställning')
       }

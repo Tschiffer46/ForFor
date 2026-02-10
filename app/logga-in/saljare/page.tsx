@@ -45,7 +45,7 @@ export default function SeljarLoginPage() {
     try {
       const response = await fetch(magicLink)
       if (response.ok) {
-        router.push('/säljare')
+        router.push('/saljare')
       }
     } catch {
       setError('Kunde inte logga in')
