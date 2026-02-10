@@ -35,6 +35,7 @@ export default async function LeveranslistorPage() {
               },
             },
           },
+        },
         orderBy: {
           namn: 'asc',
         },
