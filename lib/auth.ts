@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers'
+import { getIronSession } from 'iron-session'
 import { compare } from 'bcrypt'
 import { prisma } from './prisma'
 import { UserRole } from '@prisma/client'
@@ -14,15 +15,34 @@ export interface SessionUser {
   teamId: string | null
 }
 
-export async function getCurrentUser(): Promise<SessionUser | null> {
-  const cookieStore = await cookies()
-  const sessionCookie = cookieStore.get('forfor-session')
+interface SessionData {
+  userId?: string
+}
 
-  if (!sessionCookie) return null
+const sessionOptions = {
+  password: process.env.FORFOR_SESSION_SECRET || 'CHANGE-ME-SET-FORFOR_SESSION_SECRET-IN-ENV-32CHARS',
+  cookieName: 'forfor-session',
+  cookieOptions: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+  },
+}
+
+async function getSession() {
+  const cookieStore = await cookies()
+  return getIronSession<SessionData>(cookieStore, sessionOptions)
+}
+
+export async function getCurrentUser(): Promise<SessionUser | null> {
+  const session = await getSession()
+
+  if (!session.userId) return null
 
   try {
     const user = await prisma.user.findUnique({
-      where: { id: sessionCookie.value },
+      where: { id: session.userId },
       select: {
         id: true,
         name: true,
@@ -41,18 +61,14 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 }
 
 export async function setSession(userId: string) {
-  const cookieStore = await cookies()
-  cookieStore.set('forfor-session', userId, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-  })
+  const session = await getSession()
+  session.userId = userId
+  await session.save()
 }
 
 export async function clearSession() {
-  const cookieStore = await cookies()
-  cookieStore.delete('forfor-session')
+  const session = await getSession()
+  session.destroy()
 }
 
 export async function requireAuth(requiredRole?: UserRole): Promise<SessionUser | null> {
