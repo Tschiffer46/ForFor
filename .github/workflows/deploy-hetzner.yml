@@ -53,6 +53,6 @@ jobs:
             docker pull ghcr.io/tschiffer46/forfor:latest
             cd /home/deploy/hosting
             docker compose up -d forfor
-            # Run database migrations
-            docker compose exec -T forfor npx prisma db push --accept-data-loss
+            # Run database migrations using the Prisma version bundled in the container
+            docker compose exec -T forfor node_modules/.bin/prisma db push --accept-data-loss
           ENDSSH
