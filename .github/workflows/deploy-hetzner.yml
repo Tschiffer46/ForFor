@@ -54,5 +54,5 @@ jobs:
             cd /home/deploy/hosting
             docker compose up -d forfor
             # Run database migrations using the Prisma version bundled in the container
-            docker compose exec -T forfor node_modules/.bin/prisma db push --accept-data-loss
+            docker compose exec -T forfor node node_modules/prisma/build/index.js db push --accept-data-loss
           ENDSSH
