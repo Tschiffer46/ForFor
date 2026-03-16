@@ -11,7 +11,7 @@ export default async function SeljarLayout({
 }) {
   const user = await getCurrentUser()
 
-  if (!user || user.roll !== 'TEAM_MEMBER') {
+  if (!user || user.role !== 'TEAM_MEMBER') {
     redirect('/logga-in/saljare')
   }
 
@@ -29,7 +29,7 @@ export default async function SeljarLayout({
         <div className="px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-green-700">ForFor</h1>
-            <p className="text-sm text-gray-600">{user.namn}</p>
+            <p className="text-sm text-gray-600">{user.name}</p>
           </div>
           <form action={handleLogout}>
             <Button variant="ghost" size="sm" type="submit">

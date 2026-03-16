@@ -6,18 +6,13 @@ import { revalidatePath } from 'next/cache'
 export async function GET() {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+    if (!user || !user.organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const products = await prisma.produkt.findMany({
-      where: {
-        foreningId: user.foreningId,
-      },
-      orderBy: {
-        namn: 'asc',
-      },
+    const products = await prisma.product.findMany({
+      where: { organizationId: user.organizationId },
+      orderBy: { name: 'asc' },
     })
 
     return NextResponse.json({ products })
@@ -30,25 +25,24 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+    if (!user || user.role !== 'ORG_ADMIN' || !user.organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
-    const { namn, beskrivning, pris, bildUrl } = body
+    const { name, description, price, imageUrl } = body
 
-    if (!namn || pris === undefined) {
-      return NextResponse.json({ error: 'Namn och pris är obligatoriska' }, { status: 400 })
+    if (!name || price === undefined) {
+      return NextResponse.json({ error: 'Namn och pris kravs' }, { status: 400 })
     }
 
-    const product = await prisma.produkt.create({
+    const product = await prisma.product.create({
       data: {
-        namn,
-        beskrivning: beskrivning || null,
-        pris: parseInt(pris, 10),
-        bildUrl: bildUrl || null,
-        foreningId: user.foreningId,
+        name,
+        description: description || null,
+        price: parseInt(price, 10),
+        imageUrl: imageUrl || null,
+        organizationId: user.organizationId,
       },
     })
 

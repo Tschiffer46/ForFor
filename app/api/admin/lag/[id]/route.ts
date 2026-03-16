@@ -9,40 +9,40 @@ export async function PUT(
 ) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
     const body = await request.json()
-    const { namn } = body
+    const { name } = body
 
-    if (!namn) {
+    if (!name) {
       return NextResponse.json({ error: 'Namn är obligatoriskt' }, { status: 400 })
     }
 
-    // Verify the team belongs to the user's organization
-    const existingTeam = await prisma.lag.findFirst({
+    // Verify the lag group belongs to the user's club
+    const existing = await prisma.lagGroup.findFirst({
       where: {
         id,
-        foreningId: user.foreningId,
+        ...(user.clubId ? { clubId: user.clubId } : {}),
       },
     })
 
-    if (!existingTeam) {
+    if (!existing) {
       return NextResponse.json({ error: 'Lag hittades inte' }, { status: 404 })
     }
 
-    const team = await prisma.lag.update({
+    const lagGroup = await prisma.lagGroup.update({
       where: { id },
-      data: { namn },
+      data: { name },
     })
 
     revalidatePath('/admin/lag')
-    return NextResponse.json({ team })
+    return NextResponse.json({ lagGroup })
   } catch (error) {
-    console.error('Error updating team:', error)
+    console.error('Error updating lag group:', error)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }
@@ -53,33 +53,33 @@ export async function DELETE(
 ) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
 
-    // Verify the team belongs to the user's organization
-    const existingTeam = await prisma.lag.findFirst({
+    // Verify the lag group belongs to the user's club
+    const existing = await prisma.lagGroup.findFirst({
       where: {
         id,
-        foreningId: user.foreningId,
+        ...(user.clubId ? { clubId: user.clubId } : {}),
       },
     })
 
-    if (!existingTeam) {
+    if (!existing) {
       return NextResponse.json({ error: 'Lag hittades inte' }, { status: 404 })
     }
 
-    await prisma.lag.delete({
+    await prisma.lagGroup.delete({
       where: { id },
     })
 
     revalidatePath('/admin/lag')
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting team:', error)
+    console.error('Error deleting lag group:', error)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

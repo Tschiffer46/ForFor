@@ -14,44 +14,48 @@ export default async function SaljrundorPage() {
     return null
   }
 
-  const saljrundor = await prisma.saljrunda.findMany({
-    where: { foreningId: user.foreningId },
+  if (!user.clubId) {
+    return <p className="text-gray-500">Ingen klubb tilldelad.</p>
+  }
+
+  const campaigns = await prisma.campaign.findMany({
+    where: { clubId: user.clubId },
     include: {
       orders: true,
     },
     orderBy: {
-      forsaljningStart: 'desc',
+      salesStart: 'desc',
     },
   })
 
-  const isRoundActive = (round: typeof saljrundor[0]) => {
+  const isCampaignActive = (campaign: typeof campaigns[0]) => {
     const now = new Date()
-    return now >= round.forsaljningStart && now <= round.forsaljningSlut
+    return now >= campaign.salesStart && now <= campaign.salesEnd
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Säljrundor</h1>
-          <p className="text-gray-600 mt-1">Hantera försäljningsperioder</p>
+          <h1 className="text-3xl font-bold">Kampanjer</h1>
+          <p className="text-gray-600 mt-1">Hantera forsaljningsperioder</p>
         </div>
-        <SaljrundaForm trigger={<Button>Skapa ny säljrunda</Button>} />
+        <SaljrundaForm trigger={<Button>Skapa ny kampanj</Button>} />
       </div>
 
       <div className="space-y-4">
-        {saljrundor.map((round) => {
-          const active = isRoundActive(round)
-          const totalOrders = round.orders.length
-          const paidOrders = round.orders.filter(o => o.status === 'BETALD').length
+        {campaigns.map((campaign) => {
+          const active = isCampaignActive(campaign)
+          const totalOrders = campaign.orders.length
+          const paidOrders = campaign.orders.filter(o => o.status === 'BETALD').length
 
           return (
-            <Card key={round.id} className={active ? 'border-green-500 border-2' : ''}>
+            <Card key={campaign.id} className={active ? 'border-green-500 border-2' : ''}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-green-600" />
-                    {round.namn}
+                    {campaign.name}
                   </CardTitle>
                   <Badge variant={active ? 'success' : 'outline'}>
                     {active ? 'Aktiv' : 'Avslutad'}
@@ -61,23 +65,30 @@ export default async function SaljrundorPage() {
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-3 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600">Försäljningsstart</p>
-                    <p className="font-bold">{formatDate(round.forsaljningStart)}</p>
+                    <p className="text-sm text-gray-600">Forsaljningsstart</p>
+                    <p className="font-bold">{formatDate(campaign.salesStart)}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Försäljningsslut</p>
-                    <p className="font-bold">{formatDate(round.forsaljningSlut)}</p>
+                    <p className="text-sm text-gray-600">Forsaljningsslut</p>
+                    <p className="font-bold">{formatDate(campaign.salesEnd)}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Leveransdatum</p>
-                    <p className="font-bold">{formatDate(round.leveransDatum)}</p>
+                    <p className="text-sm text-gray-600">Leveransperiod</p>
+                    <p className="font-bold">
+                      {campaign.deliveryStart
+                        ? formatDate(campaign.deliveryStart)
+                        : '-'}
+                      {campaign.deliveryEnd
+                        ? ` - ${formatDate(campaign.deliveryEnd)}`
+                        : ''}
+                    </p>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t flex items-center justify-between">
                   <div className="flex gap-6">
                     <div>
-                      <p className="text-sm text-gray-600">Totalt beställningar</p>
+                      <p className="text-sm text-gray-600">Totalt bestallningar</p>
                       <p className="font-bold text-lg">{totalOrders}</p>
                     </div>
                     <div>
@@ -92,7 +103,7 @@ export default async function SaljrundorPage() {
 
                   <div className="flex gap-2">
                     <SaljrundaForm
-                      saljrunda={round}
+                      campaign={campaign}
                       trigger={
                         <Button variant="outline" size="sm">
                           Redigera
@@ -100,7 +111,7 @@ export default async function SaljrundorPage() {
                       }
                     />
                     <Button variant="outline" size="sm">
-                      Se beställningar
+                      Se bestallningar
                     </Button>
                   </div>
                 </div>
@@ -109,12 +120,12 @@ export default async function SaljrundorPage() {
           )
         })}
 
-        {saljrundor.length === 0 && (
+        {campaigns.length === 0 && (
           <Card>
             <CardContent className="py-12 text-center">
               <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500">Inga säljrundor skapade ännu</p>
-              <SaljrundaForm trigger={<Button className="mt-4">Skapa din första säljrunda</Button>} />
+              <p className="text-gray-500">Inga kampanjer skapade annu</p>
+              <SaljrundaForm trigger={<Button className="mt-4">Skapa din forsta kampanj</Button>} />
             </CardContent>
           </Card>
         )}

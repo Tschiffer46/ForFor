@@ -5,8 +5,8 @@ import { prisma } from '@/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'TEAM_MEMBER') {
+
+    if (!user || user.role !== 'TEAM_MEMBER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -17,12 +17,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Address ID required' }, { status: 400 })
     }
 
-    const customers = await prisma.kund.findMany({
+    const customers = await prisma.customer.findMany({
       where: {
-        adressId: addressId,
+        addressId: addressId,
       },
       orderBy: {
-        namn: 'asc',
+        name: 'asc',
       },
     })
 
@@ -36,28 +36,28 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'TEAM_MEMBER') {
+
+    if (!user || user.role !== 'TEAM_MEMBER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
-    const { namn, telefon, epost, prenumeration, adressId } = body
+    const { name, phone, email, subscription, addressId } = body
 
-    if (!namn || !adressId) {
+    if (!name || !addressId) {
       return NextResponse.json(
         { error: 'Name and address ID required' },
         { status: 400 }
       )
     }
 
-    const customer = await prisma.kund.create({
+    const customer = await prisma.customer.create({
       data: {
-        namn,
-        telefon,
-        epost,
-        prenumeration: prenumeration || false,
-        adressId,
+        name,
+        phone,
+        email,
+        subscription: subscription || false,
+        addressId,
       },
     })
 

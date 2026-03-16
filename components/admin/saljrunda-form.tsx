@@ -17,29 +17,33 @@ import { Label } from '@/components/ui/label'
 
 interface SaljrundaFormProps {
   trigger: React.ReactNode
-  saljrunda?: {
+  campaign?: {
     id: string
-    namn: string
-    forsaljningStart: Date
-    forsaljningSlut: Date
-    leveransDatum: Date
+    name: string
+    salesStart: Date
+    salesEnd: Date
+    deliveryStart: Date | null
+    deliveryEnd: Date | null
   }
 }
 
-export function SaljrundaForm({ trigger, saljrunda }: SaljrundaFormProps) {
+export function SaljrundaForm({ trigger, campaign }: SaljrundaFormProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    namn: saljrunda?.namn || '',
-    forsaljningStart: saljrunda?.forsaljningStart
-      ? new Date(saljrunda.forsaljningStart).toISOString().split('T')[0]
+    name: campaign?.name || '',
+    salesStart: campaign?.salesStart
+      ? new Date(campaign.salesStart).toISOString().split('T')[0]
       : '',
-    forsaljningSlut: saljrunda?.forsaljningSlut
-      ? new Date(saljrunda.forsaljningSlut).toISOString().split('T')[0]
+    salesEnd: campaign?.salesEnd
+      ? new Date(campaign.salesEnd).toISOString().split('T')[0]
       : '',
-    leveransDatum: saljrunda?.leveransDatum
-      ? new Date(saljrunda.leveransDatum).toISOString().split('T')[0]
+    deliveryStart: campaign?.deliveryStart
+      ? new Date(campaign.deliveryStart).toISOString().split('T')[0]
+      : '',
+    deliveryEnd: campaign?.deliveryEnd
+      ? new Date(campaign.deliveryEnd).toISOString().split('T')[0]
       : '',
   })
 
@@ -48,11 +52,11 @@ export function SaljrundaForm({ trigger, saljrunda }: SaljrundaFormProps) {
     setLoading(true)
 
     try {
-      const url = saljrunda
-        ? `/api/admin/saljrundor/${saljrunda.id}`
+      const url = campaign
+        ? `/api/admin/saljrundor/${campaign.id}`
         : '/api/admin/saljrundor'
-      
-      const method = saljrunda ? 'PUT' : 'POST'
+
+      const method = campaign ? 'PUT' : 'POST'
 
       const response = await fetch(url, {
         method,
@@ -61,14 +65,14 @@ export function SaljrundaForm({ trigger, saljrunda }: SaljrundaFormProps) {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save saljrunda')
+        throw new Error('Failed to save campaign')
       }
 
       setOpen(false)
       router.refresh()
     } catch (error) {
-      console.error('Error saving saljrunda:', error)
-      alert('Ett fel uppstod när säljrundan skulle sparas')
+      console.error('Error saving campaign:', error)
+      alert('Ett fel uppstod nar kampanjen skulle sparas')
     } finally {
       setLoading(false)
     }
@@ -81,62 +85,73 @@ export function SaljrundaForm({ trigger, saljrunda }: SaljrundaFormProps) {
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
-              {saljrunda ? 'Redigera säljrunda' : 'Skapa ny säljrunda'}
+              {campaign ? 'Redigera kampanj' : 'Skapa ny kampanj'}
             </DialogTitle>
             <DialogDescription>
-              Fyll i information om säljrundan
+              Fyll i information om kampanjen
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="namn">Namn *</Label>
+              <Label htmlFor="name">Namn *</Label>
               <Input
-                id="namn"
-                value={formData.namn}
+                id="name"
+                value={formData.name}
                 onChange={(e) =>
-                  setFormData({ ...formData, namn: e.target.value })
+                  setFormData({ ...formData, name: e.target.value })
                 }
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="forsaljningStart">Försäljningsstart *</Label>
+              <Label htmlFor="salesStart">Forsaljningsstart *</Label>
               <Input
-                id="forsaljningStart"
+                id="salesStart"
                 type="date"
-                value={formData.forsaljningStart}
+                value={formData.salesStart}
                 onChange={(e) =>
-                  setFormData({ ...formData, forsaljningStart: e.target.value })
+                  setFormData({ ...formData, salesStart: e.target.value })
                 }
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="forsaljningSlut">Försäljningsslut *</Label>
+              <Label htmlFor="salesEnd">Forsaljningsslut *</Label>
               <Input
-                id="forsaljningSlut"
+                id="salesEnd"
                 type="date"
-                value={formData.forsaljningSlut}
+                value={formData.salesEnd}
                 onChange={(e) =>
-                  setFormData({ ...formData, forsaljningSlut: e.target.value })
+                  setFormData({ ...formData, salesEnd: e.target.value })
                 }
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="leveransDatum">Leveransdatum *</Label>
+              <Label htmlFor="deliveryStart">Leveransstart</Label>
               <Input
-                id="leveransDatum"
+                id="deliveryStart"
                 type="date"
-                value={formData.leveransDatum}
+                value={formData.deliveryStart}
                 onChange={(e) =>
-                  setFormData({ ...formData, leveransDatum: e.target.value })
+                  setFormData({ ...formData, deliveryStart: e.target.value })
                 }
-                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="deliveryEnd">Leveransslut</Label>
+              <Input
+                id="deliveryEnd"
+                type="date"
+                value={formData.deliveryEnd}
+                onChange={(e) =>
+                  setFormData({ ...formData, deliveryEnd: e.target.value })
+                }
               />
             </div>
           </div>

@@ -19,7 +19,7 @@ interface LagFormProps {
   trigger: React.ReactNode
   team?: {
     id: string
-    namn: string
+    name: string
   }
 }
 
@@ -27,7 +27,7 @@ export function LagForm({ trigger, team }: LagFormProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [namn, setNamn] = useState(team?.namn || '')
+  const [name, setName] = useState(team?.name || '')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,7 +40,7 @@ export function LagForm({ trigger, team }: LagFormProps) {
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ namn }),
+        body: JSON.stringify({ name }),
       })
 
       if (!response.ok) {
@@ -51,7 +51,7 @@ export function LagForm({ trigger, team }: LagFormProps) {
       router.refresh()
     } catch (error) {
       console.error('Error saving team:', error)
-      alert('Ett fel uppstod när laget skulle sparas')
+      alert('Ett fel uppstod nar laget skulle sparas')
     } finally {
       setLoading(false)
     }
@@ -67,17 +67,17 @@ export function LagForm({ trigger, team }: LagFormProps) {
               {team ? 'Redigera lag' : 'Skapa nytt lag'}
             </DialogTitle>
             <DialogDescription>
-              Ange namn för laget
+              Ange namn for laget
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="namn">Lagnamn *</Label>
+              <Label htmlFor="name">Lagnamn *</Label>
               <Input
-                id="namn"
-                value={namn}
-                onChange={(e) => setNamn(e.target.value)}
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 required
               />
             </div>

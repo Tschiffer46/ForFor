@@ -16,13 +16,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 interface ProduktFormProps {
-  trigger: React.ReactNode
+  trigger?: React.ReactNode
   product?: {
     id: string
-    namn: string
-    beskrivning: string | null
-    pris: number
-    bildUrl: string | null
+    name: string
+    description: string | null
+    price: number
+    imageUrl: string | null
   }
 }
 
@@ -31,10 +31,10 @@ export function ProduktForm({ trigger, product }: ProduktFormProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    namn: product?.namn || '',
-    beskrivning: product?.beskrivning || '',
-    pris: product?.pris?.toString() || '',
-    bildUrl: product?.bildUrl || '',
+    name: product?.name || '',
+    description: product?.description || '',
+    price: product?.price?.toString() || '',
+    imageUrl: product?.imageUrl || '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,7 +45,7 @@ export function ProduktForm({ trigger, product }: ProduktFormProps) {
       const url = product
         ? `/api/admin/produkter/${product.id}`
         : '/api/admin/produkter'
-      
+
       const method = product ? 'PUT' : 'POST'
 
       const response = await fetch(url, {
@@ -62,20 +62,22 @@ export function ProduktForm({ trigger, product }: ProduktFormProps) {
       router.refresh()
     } catch (error) {
       console.error('Error saving product:', error)
-      alert('Ett fel uppstod när produkten skulle sparas')
+      alert('Ett fel uppstod nar produkten skulle sparas')
     } finally {
       setLoading(false)
     }
   }
 
+  const triggerElement = trigger || <Button>Lagg till produkt</Button>
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogTrigger asChild>{triggerElement}</DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
-              {product ? 'Redigera produkt' : 'Lägg till produkt'}
+              {product ? 'Redigera produkt' : 'Lagg till produkt'}
             </DialogTitle>
             <DialogDescription>
               Fyll i produktinformation nedan
@@ -84,49 +86,49 @@ export function ProduktForm({ trigger, product }: ProduktFormProps) {
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="namn">Namn *</Label>
+              <Label htmlFor="name">Namn *</Label>
               <Input
-                id="namn"
-                value={formData.namn}
+                id="name"
+                value={formData.name}
                 onChange={(e) =>
-                  setFormData({ ...formData, namn: e.target.value })
+                  setFormData({ ...formData, name: e.target.value })
                 }
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="beskrivning">Beskrivning</Label>
+              <Label htmlFor="description">Beskrivning</Label>
               <Input
-                id="beskrivning"
-                value={formData.beskrivning}
+                id="description"
+                value={formData.description}
                 onChange={(e) =>
-                  setFormData({ ...formData, beskrivning: e.target.value })
+                  setFormData({ ...formData, description: e.target.value })
                 }
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="pris">Pris (SEK) *</Label>
+              <Label htmlFor="price">Pris (SEK) *</Label>
               <Input
-                id="pris"
+                id="price"
                 type="number"
-                value={formData.pris}
+                value={formData.price}
                 onChange={(e) =>
-                  setFormData({ ...formData, pris: e.target.value })
+                  setFormData({ ...formData, price: e.target.value })
                 }
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bildUrl">Bild-URL</Label>
+              <Label htmlFor="imageUrl">Bild-URL</Label>
               <Input
-                id="bildUrl"
+                id="imageUrl"
                 type="url"
-                value={formData.bildUrl}
+                value={formData.imageUrl}
                 onChange={(e) =>
-                  setFormData({ ...formData, bildUrl: e.target.value })
+                  setFormData({ ...formData, imageUrl: e.target.value })
                 }
               />
             </div>

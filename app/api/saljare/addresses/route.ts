@@ -5,22 +5,24 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'TEAM_MEMBER' || !user.lagId) {
+
+    if (!user || user.role !== 'TEAM_MEMBER' || !user.teamId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const addresses = await prisma.adress.findMany({
+    const addresses = await prisma.address.findMany({
       where: {
-        gata: {
-          lagId: user.lagId,
+        streetRef: {
+          district: {
+            teamId: user.teamId,
+          },
         },
       },
       include: {
-        gata: true,
+        streetRef: true,
       },
       orderBy: {
-        gatuadress: 'asc',
+        street: 'asc',
       },
     })
 

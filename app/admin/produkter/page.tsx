@@ -4,97 +4,51 @@ import { Badge } from '@/components/ui/badge'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { formatCurrency } from '@/lib/utils'
-import { Package } from 'lucide-react'
 import { ProduktForm } from '@/components/admin/produkt-form'
-import { DeleteButton } from '@/components/admin/delete-button'
 
-export default async function ProdukterPage() {
+export default async function ProductsPage() {
   const user = await getCurrentUser()
+  if (!user) return null
 
-  if (!user) {
-    return null
-  }
+  const orgId = user.organizationId
+  if (!orgId) return null
 
-  const products = await prisma.produkt.findMany({
-    where: { foreningId: user.foreningId },
-    orderBy: {
-      namn: 'asc',
-    },
+  const products = await prisma.product.findMany({
+    where: { organizationId: orgId },
+    orderBy: { name: 'asc' },
   })
+
+  const isOrgAdmin = user.role === 'ORG_ADMIN'
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Produkter</h1>
-          <p className="text-gray-600 mt-1">Hantera produkter som säljs i säck</p>
+          <p className="text-gray-600 mt-1">{products.length} produkter</p>
         </div>
-        <ProduktForm trigger={<Button>Lägg till produkt</Button>} />
+        {isOrgAdmin && <ProduktForm />}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {products.map((product) => (
-          <Card key={product.id} className="hover:shadow-lg transition-shadow">
+          <Card key={product.id}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-green-600" />
-                <span className="line-clamp-1">{product.namn}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {product.beskrivning && (
-                <p className="text-sm text-gray-600 line-clamp-2">
-                  {product.beskrivning}
-                </p>
-              )}
-              
-              <div className="flex items-center justify-between pt-2 border-t">
-                <span className="text-sm text-gray-600">Pris per säck:</span>
-                <Badge variant="outline" className="text-lg font-bold">
-                  {formatCurrency(product.pris)}
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">{product.name}</CardTitle>
+                <Badge variant={product.active ? 'success' : 'secondary'}>
+                  {product.active ? 'Aktiv' : 'Inaktiv'}
                 </Badge>
               </div>
-
-              <div className="flex gap-2">
-                <ProduktForm
-                  product={product}
-                  trigger={
-                    <Button variant="outline" size="sm" className="flex-1">
-                      Redigera
-                    </Button>
-                  }
-                />
-                <DeleteButton
-                  itemName={product.namn}
-                  itemType="produkt"
-                  onDelete={async () => {
-                    const response = await fetch(`/api/admin/produkter/${product.id}`, {
-                      method: 'DELETE',
-                    })
-                    if (!response.ok) {
-                      throw new Error('Failed to delete product')
-                    }
-                  }}
-                  trigger={
-                    <Button variant="ghost" size="sm" className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50">
-                      Ta bort
-                    </Button>
-                  }
-                />
-              </div>
+            </CardHeader>
+            <CardContent>
+              {product.description && (
+                <p className="text-gray-600 text-sm mb-3">{product.description}</p>
+              )}
+              <p className="text-2xl font-bold text-green-700">{formatCurrency(product.price)}</p>
             </CardContent>
           </Card>
         ))}
-
-        {products.length === 0 && (
-          <Card className="col-span-full">
-            <CardContent className="py-12 text-center">
-              <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500">Inga produkter skapade ännu</p>
-              <ProduktForm trigger={<Button className="mt-4">Lägg till din första produkt</Button>} />
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   )

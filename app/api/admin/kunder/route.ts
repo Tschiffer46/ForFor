@@ -6,34 +6,46 @@ import { revalidatePath } from 'next/cache'
 export async function GET() {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const customers = await prisma.kund.findMany({
+    if (!user.clubId) {
+      return NextResponse.json({ error: 'No club assigned' }, { status: 400 })
+    }
+
+    const customers = await prisma.customer.findMany({
       where: {
-        adress: {
-          gata: {
-            lag: {
-              foreningId: user.foreningId,
+        address: {
+          streetRef: {
+            district: {
+              team: {
+                lagGroup: {
+                  clubId: user.clubId,
+                },
+              },
             },
           },
         },
       },
       include: {
-        adress: {
+        address: {
           include: {
-            gata: {
+            streetRef: {
               include: {
-                lag: true,
+                district: {
+                  include: {
+                    team: true,
+                  },
+                },
               },
             },
           },
         },
       },
       orderBy: {
-        namn: 'asc',
+        name: 'asc',
       },
     })
 
@@ -47,25 +59,29 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
-    const { namn, telefon, epost, prenumeration, adressId } = body
+    const { name, phone, email, subscription, addressId } = body
 
-    if (!namn || !adressId) {
-      return NextResponse.json({ error: 'Namn och adress är obligatoriska' }, { status: 400 })
+    if (!name || !addressId) {
+      return NextResponse.json({ error: 'Namn och adress ar obligatoriska' }, { status: 400 })
     }
 
-    // Verify the address belongs to the user's organization
-    const address = await prisma.adress.findFirst({
+    // Verify the address belongs to the user's club
+    const address = await prisma.address.findFirst({
       where: {
-        id: adressId,
-        gata: {
-          lag: {
-            foreningId: user.foreningId,
+        id: addressId,
+        streetRef: {
+          district: {
+            team: {
+              lagGroup: {
+                clubId: user.clubId!,
+              },
+            },
           },
         },
       },
@@ -75,13 +91,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ogiltig adress' }, { status: 400 })
     }
 
-    const customer = await prisma.kund.create({
+    const customer = await prisma.customer.create({
       data: {
-        namn,
-        telefon: telefon || null,
-        epost: epost || null,
-        prenumeration: prenumeration || false,
-        adressId,
+        name,
+        phone: phone || null,
+        email: email || null,
+        subscription: subscription || false,
+        addressId,
       },
     })
 

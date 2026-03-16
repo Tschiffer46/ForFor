@@ -9,7 +9,7 @@ export default async function Home() {
 
   // If user is logged in, redirect to appropriate dashboard
   if (user) {
-    if (user.roll === 'ADMIN') {
+    if (user.role === 'ORG_ADMIN' || user.role === 'CLUB_ADMIN') {
       redirect('/admin')
     } else {
       redirect('/saljare')
@@ -24,7 +24,7 @@ export default async function Home() {
             ForFor
           </CardTitle>
           <CardDescription className="text-lg">
-            Föreningsförsäljning - Door-to-door kampanjhantering för svenska sportklubbar
+            Foreningsforsaljning - Door-to-door kampanjhantering for svenska sportklubbar
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -34,7 +34,7 @@ export default async function Home() {
                 <CardHeader>
                   <CardTitle className="text-xl">Admin</CardTitle>
                   <CardDescription>
-                    Logga in med BankID för att hantera föreningen
+                    Logga in med BankID for att hantera foreningen
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -48,14 +48,14 @@ export default async function Home() {
             <Link href="/logga-in/saljare" className="block">
               <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
                 <CardHeader>
-                  <CardTitle className="text-xl">Säljare</CardTitle>
+                  <CardTitle className="text-xl">Saljare</CardTitle>
                   <CardDescription>
-                    Logga in som lagmedlem för att registrera beställningar
+                    Logga in som lagmedlem for att registrera bestallningar
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button className="w-full" variant="outline">
-                    Säljare-inloggning
+                    Saljare-inloggning
                   </Button>
                 </CardContent>
               </Card>
@@ -63,11 +63,10 @@ export default async function Home() {
           </div>
 
           <div className="text-center text-sm text-gray-500 pt-4 border-t">
-            Hantera säljrundor, lag, adresser och beställningar enkelt och effektivt
+            Hantera kampanjer, lag, adresser och bestallningar enkelt och effektivt
           </div>
         </CardContent>
       </Card>
     </div>
   )
 }
-

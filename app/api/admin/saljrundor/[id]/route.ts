@@ -9,45 +9,45 @@ export async function PUT(
 ) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
     const body = await request.json()
-    const { namn, forsaljningStart, forsaljningSlut, leveransDatum } = body
+    const { name, salesStart, salesEnd, deliveryStart } = body
 
-    if (!namn || !forsaljningStart || !forsaljningSlut || !leveransDatum) {
-      return NextResponse.json({ error: 'Alla fält är obligatoriska' }, { status: 400 })
+    if (!name || !salesStart || !salesEnd) {
+      return NextResponse.json({ error: 'Namn och försäljningsdatum är obligatoriska' }, { status: 400 })
     }
 
-    // Verify the saljrunda belongs to the user's organization
-    const existingSaljrunda = await prisma.saljrunda.findFirst({
+    // Verify the campaign belongs to the user's club
+    const existing = await prisma.campaign.findFirst({
       where: {
         id,
-        foreningId: user.foreningId,
+        ...(user.clubId ? { clubId: user.clubId } : {}),
       },
     })
 
-    if (!existingSaljrunda) {
-      return NextResponse.json({ error: 'Säljrunda hittades inte' }, { status: 404 })
+    if (!existing) {
+      return NextResponse.json({ error: 'Kampanj hittades inte' }, { status: 404 })
     }
 
-    const saljrunda = await prisma.saljrunda.update({
+    const campaign = await prisma.campaign.update({
       where: { id },
       data: {
-        namn,
-        forsaljningStart: new Date(forsaljningStart),
-        forsaljningSlut: new Date(forsaljningSlut),
-        leveransDatum: new Date(leveransDatum),
+        name,
+        salesStart: new Date(salesStart),
+        salesEnd: new Date(salesEnd),
+        deliveryStart: deliveryStart ? new Date(deliveryStart) : null,
       },
     })
 
     revalidatePath('/admin/saljrundor')
-    return NextResponse.json({ saljrunda })
+    return NextResponse.json({ campaign })
   } catch (error) {
-    console.error('Error updating saljrunda:', error)
+    console.error('Error updating campaign:', error)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }
@@ -58,33 +58,33 @@ export async function DELETE(
 ) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
 
-    // Verify the saljrunda belongs to the user's organization
-    const existingSaljrunda = await prisma.saljrunda.findFirst({
+    // Verify the campaign belongs to the user's club
+    const existing = await prisma.campaign.findFirst({
       where: {
         id,
-        foreningId: user.foreningId,
+        ...(user.clubId ? { clubId: user.clubId } : {}),
       },
     })
 
-    if (!existingSaljrunda) {
-      return NextResponse.json({ error: 'Säljrunda hittades inte' }, { status: 404 })
+    if (!existing) {
+      return NextResponse.json({ error: 'Kampanj hittades inte' }, { status: 404 })
     }
 
-    await prisma.saljrunda.delete({
+    await prisma.campaign.delete({
       where: { id },
     })
 
     revalidatePath('/admin/saljrundor')
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting saljrunda:', error)
+    console.error('Error deleting campaign:', error)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

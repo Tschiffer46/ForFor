@@ -17,9 +17,13 @@ interface ImportCustomer {
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (!user.clubId) {
+      return NextResponse.json({ error: 'No club assigned' }, { status: 400 })
     }
 
     const body = await request.json()
@@ -38,90 +42,119 @@ export async function POST(request: NextRequest) {
         // Validate required fields
         if (!customerData.namn || !customerData.gatuadress) {
           skipped++
-          errors.push(`Saknar namn eller adress för rad`)
+          errors.push(`Saknar namn eller adress for rad`)
           continue
         }
 
-        // Find or create team
-        let team
-        if (customerData.lagNamn) {
-          team = await prisma.lag.findFirst({
-            where: {
-              namn: customerData.lagNamn,
-              foreningId: user.foreningId,
+        // Find or create a lag group and team
+        let lagGroup = await prisma.lagGroup.findFirst({
+          where: {
+            clubId: user.clubId,
+          },
+        })
+
+        if (!lagGroup) {
+          lagGroup = await prisma.lagGroup.create({
+            data: {
+              name: 'Standard',
+              clubId: user.clubId,
             },
           })
-          
+        }
+
+        let team
+        if (customerData.lagNamn) {
+          team = await prisma.team.findFirst({
+            where: {
+              name: customerData.lagNamn,
+              lagGroup: { clubId: user.clubId },
+            },
+          })
+
           if (!team) {
-            // Create the team if it doesn't exist
-            team = await prisma.lag.create({
+            team = await prisma.team.create({
               data: {
-                namn: customerData.lagNamn,
-                foreningId: user.foreningId,
+                name: customerData.lagNamn,
+                lagGroupId: lagGroup.id,
               },
             })
           }
         } else {
-          // Use the first team or create a default one
-          team = await prisma.lag.findFirst({
-            where: { foreningId: user.foreningId },
+          team = await prisma.team.findFirst({
+            where: { lagGroup: { clubId: user.clubId } },
           })
-          
+
           if (!team) {
-            team = await prisma.lag.create({
+            team = await prisma.team.create({
               data: {
-                namn: 'Standard',
-                foreningId: user.foreningId,
+                name: 'Standard',
+                lagGroupId: lagGroup.id,
               },
             })
           }
         }
 
-        // Find or create street (gata)
-        let street = await prisma.gata.findFirst({
+        // Find or create district
+        let district = await prisma.district.findFirst({
           where: {
-            namn: customerData.gatuadress,
-            stad: customerData.stad,
-            lagId: team.id,
+            teamId: team.id,
+          },
+        })
+
+        if (!district) {
+          district = await prisma.district.create({
+            data: {
+              name: 'Standard',
+              teamId: team.id,
+            },
+          })
+        }
+
+        // Find or create street
+        let street = await prisma.street.findFirst({
+          where: {
+            name: customerData.gatuadress,
+            city: customerData.stad,
+            districtId: district.id,
           },
         })
 
         if (!street) {
-          street = await prisma.gata.create({
+          street = await prisma.street.create({
             data: {
-              namn: customerData.gatuadress,
-              stad: customerData.stad,
-              lagId: team.id,
+              name: customerData.gatuadress,
+              city: customerData.stad,
+              districtId: district.id,
             },
           })
         }
 
         // Find or create address
-        let address = await prisma.adress.findFirst({
+        let address = await prisma.address.findFirst({
           where: {
-            gatuadress: customerData.gatuadress,
-            postnummer: customerData.postnummer,
-            stad: customerData.stad,
-            gataId: street.id,
+            street: customerData.gatuadress,
+            postalCode: customerData.postnummer,
+            city: customerData.stad,
+            streetId: street.id,
           },
         })
 
         if (!address) {
-          address = await prisma.adress.create({
+          address = await prisma.address.create({
             data: {
-              gatuadress: customerData.gatuadress,
-              postnummer: customerData.postnummer,
-              stad: customerData.stad,
-              gataId: street.id,
+              street: customerData.gatuadress,
+              postalCode: customerData.postnummer,
+              city: customerData.stad,
+              streetId: street.id,
             },
           })
         }
 
         // Check if customer already exists at this address
-        const existingCustomer = await prisma.kund.findFirst({
+        const existingCustomer = await prisma.customer.findFirst({
           where: {
-            namn: customerData.namn,
-            adressId: address.id,
+            name: customerData.namn,
+            addressId: address.id,
           },
         })
 
@@ -131,13 +164,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Create customer
-        await prisma.kund.create({
+        await prisma.customer.create({
           data: {
-            namn: customerData.namn,
-            telefon: customerData.telefon || null,
-            epost: customerData.epost || null,
-            prenumeration: customerData.prenumeration || false,
-            adressId: address.id,
+            name: customerData.namn,
+            phone: customerData.telefon || null,
+            email: customerData.epost || null,
+            subscription: customerData.prenumeration || false,
+            addressId: address.id,
           },
         })
 

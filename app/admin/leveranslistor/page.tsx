@@ -4,18 +4,11 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { formatCurrency } from '@/lib/utils'
 import { PrintButton } from '@/components/admin/print-button'
+import type { Prisma } from '@prisma/client'
 
-export default async function LeveranslistorPage() {
-  const user = await getCurrentUser()
-
-  if (!user) {
-    return null
-  }
-
-  try {
-    // Get all teams with their streets and orders
-    const teams = await prisma.lag.findMany({
-      where: { foreningId: user.foreningId },
+type TeamWithDeliveryData = Prisma.TeamGetPayload<{
+  include: {
+    districts: {
       include: {
         streets: {
           include: {
@@ -25,9 +18,61 @@ export default async function LeveranslistorPage() {
                   include: {
                     orders: {
                       include: {
-                        orderItems: {
+                        items: {
                           include: {
-                            produkt: true,
+                            product: true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}>
+
+type DeliveryStreet = TeamWithDeliveryData['districts'][number]['streets'][number]
+type DeliveryAddress = DeliveryStreet['addresses'][number]
+type DeliveryCustomer = DeliveryAddress['customers'][number]
+type DeliveryOrder = DeliveryCustomer['orders'][number]
+type DeliveryOrderItem = DeliveryOrder['items'][number]
+
+export default async function LeveranslistorPage() {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    return null
+  }
+
+  if (!user.clubId) {
+    return <p className="text-gray-500">Ingen klubb tilldelad.</p>
+  }
+
+  try {
+    // Get all teams with their districts, streets, and orders
+    const teams = await prisma.team.findMany({
+      where: { lagGroup: { clubId: user.clubId } },
+      include: {
+        districts: {
+          include: {
+            streets: {
+              include: {
+                addresses: {
+                  include: {
+                    customers: {
+                      include: {
+                        orders: {
+                          include: {
+                            items: {
+                              include: {
+                                product: true,
+                              },
+                            },
                           },
                         },
                       },
@@ -35,15 +80,15 @@ export default async function LeveranslistorPage() {
                   },
                 },
               },
+              orderBy: {
+                name: 'asc',
+              },
             },
-          },
-          orderBy: {
-            namn: 'asc',
           },
         },
       },
       orderBy: {
-        namn: 'asc',
+        name: 'asc',
       },
     })
 
@@ -52,14 +97,15 @@ export default async function LeveranslistorPage() {
         <div>
           <h1 className="text-3xl font-bold">Leveranslistor</h1>
           <p className="text-gray-600 mt-1">
-            Utskrivbara leveranslistor organiserade per lag och gata
+            Utskrivbara leveranslistor organiserade per team och gata
           </p>
         </div>
 
         {teams.map((team) => {
-          const streetsWithOrders = team.streets.filter((street) =>
-            street.addresses.some((addr) =>
-              addr.customers.some((kund) => kund.orders.length > 0)
+          const allStreets: DeliveryStreet[] = team.districts.flatMap((d) => d.streets)
+          const streetsWithOrders = allStreets.filter((street: DeliveryStreet) =>
+            street.addresses.some((addr: DeliveryAddress) =>
+              addr.customers.some((cust: DeliveryCustomer) => cust.orders.length > 0)
             )
           )
 
@@ -70,50 +116,50 @@ export default async function LeveranslistorPage() {
           return (
             <Card key={team.id} className="print:shadow-none">
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>{team.namn} - Leveranslista</CardTitle>
+                <CardTitle>{team.name} - Leveranslista</CardTitle>
                 <PrintButton />
               </CardHeader>
               <CardContent className="space-y-6">
-                {streetsWithOrders.map((street) => (
+                {streetsWithOrders.map((street: DeliveryStreet) => (
                   <div key={street.id} className="space-y-3">
                     <h3 className="font-bold text-lg border-b pb-2">
-                      {street.namn}, {street.stad}
+                      {street.name}, {street.city}
                     </h3>
 
-                    {street.addresses.map((address) => {
+                    {street.addresses.map((address: DeliveryAddress) => {
                       const customersWithOrders = address.customers.filter(
-                        (kund) => kund.orders.length > 0
+                        (cust: DeliveryCustomer) => cust.orders.length > 0
                       )
 
                       if (customersWithOrders.length === 0) {
                         return null
                       }
 
-                      return customersWithOrders.map((customer) => (
+                      return customersWithOrders.map((customer: DeliveryCustomer) => (
                         <div
                           key={customer.id}
                           className="pl-4 py-3 border-l-2 border-gray-300 space-y-2"
                         >
                           <div className="flex items-start justify-between">
                             <div>
-                              <p className="font-bold">{customer.namn}</p>
+                              <p className="font-bold">{customer.name}</p>
                               <p className="text-sm text-gray-600">
-                                {address.gatuadress}
+                                {address.street}
                               </p>
-                              {customer.telefon && (
+                              {customer.phone && (
                                 <p className="text-sm text-gray-600">
-                                  {customer.telefon}
+                                  {customer.phone}
                                 </p>
                               )}
                             </div>
-                            {customer.prenumeration && (
+                            {customer.subscription && (
                               <Badge variant="success" className="text-xs">
                                 Prenumeration
                               </Badge>
                             )}
                           </div>
 
-                          {customer.orders.map((order) => (
+                          {customer.orders.map((order: DeliveryOrder) => (
                             <div
                               key={order.id}
                               className="bg-gray-50 p-3 rounded space-y-1"
@@ -130,13 +176,13 @@ export default async function LeveranslistorPage() {
                                   {order.status}
                                 </Badge>
                               </div>
-                              {order.orderItems.map((item) => (
+                              {order.items.map((item: DeliveryOrderItem) => (
                                 <p key={item.id} className="text-sm text-gray-700">
-                                  • {item.antal}x {item.produkt.namn}
+                                  - {item.quantity}x {item.product.name}
                                 </p>
                               ))}
                               <p className="text-sm font-bold pt-1 border-t">
-                                Totalt: {formatCurrency(order.totalBelopp)}
+                                Totalt: {formatCurrency(order.totalAmount)}
                               </p>
                             </div>
                           ))}
@@ -151,16 +197,18 @@ export default async function LeveranslistorPage() {
         })}
 
         {teams.every(
-          (team) =>
-            !team.streets.some((street) =>
-              street.addresses.some((addr) =>
-                addr.customers.some((kund) => kund.orders.length > 0)
+          (team: TeamWithDeliveryData) =>
+            !team.districts.some((d) =>
+              d.streets.some((street: DeliveryStreet) =>
+                street.addresses.some((addr: DeliveryAddress) =>
+                  addr.customers.some((cust: DeliveryCustomer) => cust.orders.length > 0)
+                )
               )
             )
         ) && (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-gray-500">Inga beställningar att visa ännu</p>
+              <p className="text-gray-500">Inga bestallningar att visa annu</p>
             </CardContent>
           </Card>
         )}
@@ -173,13 +221,13 @@ export default async function LeveranslistorPage() {
         <div>
           <h1 className="text-3xl font-bold">Leveranslistor</h1>
           <p className="text-gray-600 mt-1">
-            Utskrivbara leveranslistor organiserade per lag och gata
+            Utskrivbara leveranslistor organiserade per team och gata
           </p>
         </div>
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-red-500">Ett fel uppstod vid hämtning av leveranslistor.</p>
-            <p className="text-sm text-gray-400 mt-2">Försök igen senare.</p>
+            <p className="text-red-500">Ett fel uppstod vid hamtning av leveranslistor.</p>
+            <p className="text-sm text-gray-400 mt-2">Forsok igen senare.</p>
           </CardContent>
         </Card>
       </div>

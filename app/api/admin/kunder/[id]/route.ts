@@ -9,30 +9,36 @@ export async function PUT(
 ) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
     const body = await request.json()
-    const { namn, telefon, epost, prenumeration } = body
+    const { name, phone, email, subscription } = body
 
-    if (!namn) {
+    if (!name) {
       return NextResponse.json({ error: 'Namn är obligatoriskt' }, { status: 400 })
     }
 
-    // Verify the customer belongs to the user's organization
-    const existingCustomer = await prisma.kund.findFirst({
+    // Verify the customer belongs to the user's club
+    const existingCustomer = await prisma.customer.findFirst({
       where: {
         id,
-        adress: {
-          gata: {
-            lag: {
-              foreningId: user.foreningId,
+        ...(user.clubId ? {
+          address: {
+            streetRef: {
+              district: {
+                team: {
+                  lagGroup: {
+                    clubId: user.clubId,
+                  },
+                },
+              },
             },
           },
-        },
+        } : {}),
       },
     })
 
@@ -40,13 +46,13 @@ export async function PUT(
       return NextResponse.json({ error: 'Kund hittades inte' }, { status: 404 })
     }
 
-    const customer = await prisma.kund.update({
+    const customer = await prisma.customer.update({
       where: { id },
       data: {
-        namn,
-        telefon: telefon || null,
-        epost: epost || null,
-        prenumeration: prenumeration || false,
+        name,
+        phone: phone || null,
+        email: email || null,
+        subscription: subscription || false,
       },
     })
 
@@ -64,24 +70,30 @@ export async function DELETE(
 ) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
 
-    // Verify the customer belongs to the user's organization
-    const existingCustomer = await prisma.kund.findFirst({
+    // Verify the customer belongs to the user's club
+    const existingCustomer = await prisma.customer.findFirst({
       where: {
         id,
-        adress: {
-          gata: {
-            lag: {
-              foreningId: user.foreningId,
+        ...(user.clubId ? {
+          address: {
+            streetRef: {
+              district: {
+                team: {
+                  lagGroup: {
+                    clubId: user.clubId,
+                  },
+                },
+              },
             },
           },
-        },
+        } : {}),
       },
     })
 
@@ -89,7 +101,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Kund hittades inte' }, { status: 404 })
     }
 
-    await prisma.kund.delete({
+    await prisma.customer.delete({
       where: { id },
     })
 

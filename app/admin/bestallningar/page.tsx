@@ -3,24 +3,6 @@ import { Badge } from '@/components/ui/badge'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import type { Prisma } from '@prisma/client'
-
-type OrderWithRelations = Prisma.OrderGetPayload<{
-  include: {
-    kund: true
-    saljare: {
-      include: {
-        lag: true
-      }
-    }
-    saljrunda: true
-    orderItems: {
-      include: {
-        produkt: true
-      }
-    }
-  }
-}>
 
 export default async function BestallningarPage() {
   const user = await getCurrentUser()
@@ -29,21 +11,26 @@ export default async function BestallningarPage() {
     return null
   }
 
-  const orders: OrderWithRelations[] = await prisma.order.findMany({
+  if (!user.clubId) {
+    return <p className="text-gray-500">Ingen klubb tilldelad.</p>
+  }
+
+  const orders = await prisma.order.findMany({
     where: {
-      saljare: { foreningId: user.foreningId },
+      team: { lagGroup: { clubId: user.clubId } },
     },
     include: {
-      kund: true,
-      saljare: {
+      customer: true,
+      seller: true,
+      team: {
         include: {
-          lag: true,
+          lagGroup: true,
         },
       },
-      saljrunda: true,
-      orderItems: {
+      campaign: true,
+      items: {
         include: {
-          produkt: true,
+          product: true,
         },
       },
     },
@@ -52,17 +39,17 @@ export default async function BestallningarPage() {
     },
   })
 
-  // Calculate stats using aggregation for better performance
+  // Calculate stats
   const [betaldaCount, obetaldaCount] = await Promise.all([
     prisma.order.count({
       where: {
-        saljare: { foreningId: user.foreningId },
+        team: { lagGroup: { clubId: user.clubId } },
         status: 'BETALD',
       },
     }),
     prisma.order.count({
       where: {
-        saljare: { foreningId: user.foreningId },
+        team: { lagGroup: { clubId: user.clubId } },
         status: 'OBETALD',
       },
     }),
@@ -71,9 +58,9 @@ export default async function BestallningarPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Beställningar</h1>
+        <h1 className="text-3xl font-bold">Bestallningar</h1>
         <p className="text-gray-600 mt-1">
-          Översikt över alla beställningar ({orders.length} totalt)
+          Oversikt over alla bestallningar ({orders.length} totalt)
         </p>
       </div>
 
@@ -82,7 +69,7 @@ export default async function BestallningarPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-sm text-gray-600">Totalt beställningar</p>
+              <p className="text-sm text-gray-600">Totalt bestallningar</p>
               <p className="text-3xl font-bold mt-1">{orders.length}</p>
             </div>
           </CardContent>
@@ -123,10 +110,10 @@ export default async function BestallningarPage() {
                     Kund
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Säljare
+                    Saljare
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Lag
+                    Team
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Produkter
@@ -147,25 +134,25 @@ export default async function BestallningarPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div>
-                        <p className="font-medium">{order.kund.namn}</p>
-                        {order.kund.telefon && (
-                          <p className="text-xs text-gray-500">{order.kund.telefon}</p>
+                        <p className="font-medium">{order.customer.name}</p>
+                        {order.customer.phone && (
+                          <p className="text-xs text-gray-500">{order.customer.phone}</p>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm">{order.saljare.namn}</td>
+                    <td className="px-4 py-3 text-sm">{order.seller?.name || '-'}</td>
                     <td className="px-4 py-3 text-sm">
-                      {order.saljare.lag?.namn || '-'}
+                      {order.team?.name || '-'}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      {order.orderItems.map((item) => (
+                      {order.items.map((item) => (
                         <div key={item.id} className="text-xs">
-                          {item.antal}x {item.produkt.namn}
+                          {item.quantity}x {item.product.name}
                         </div>
                       ))}
                     </td>
                     <td className="px-4 py-3 font-bold">
-                      {formatCurrency(order.totalBelopp)}
+                      {formatCurrency(order.totalAmount)}
                     </td>
                     <td className="px-4 py-3">
                       <Badge
@@ -180,7 +167,7 @@ export default async function BestallningarPage() {
                 {orders.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
-                      Inga beställningar ännu
+                      Inga bestallningar annu
                     </td>
                   </tr>
                 )}

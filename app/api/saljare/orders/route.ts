@@ -6,15 +6,15 @@ import { generateSwishQRCode, formatSwishMessage } from '@/lib/swish'
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'TEAM_MEMBER') {
+
+    if (!user || user.role !== 'TEAM_MEMBER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
-    const { kundId, items } = body
+    const { customerId, items } = body
 
-    if (!kundId || !items || items.length === 0) {
+    if (!customerId || !items || items.length === 0) {
       return NextResponse.json(
         { error: 'Customer ID and items required' },
         { status: 400 }
@@ -22,68 +22,68 @@ export async function POST(request: NextRequest) {
     }
 
     // Get customer to check for subscription
-    const customer = await prisma.kund.findUnique({
-      where: { id: kundId },
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
     })
 
     if (!customer) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 })
     }
 
-    // Get current order round
-    const currentRound = await prisma.saljrunda.findFirst({
+    // Get current campaign
+    const currentCampaign = await prisma.campaign.findFirst({
       where: {
-        foreningId: user.foreningId,
-        forsaljningStart: { lte: new Date() },
-        forsaljningSlut: { gte: new Date() },
+        clubId: user.clubId!,
+        salesStart: { lte: new Date() },
+        salesEnd: { gte: new Date() },
       },
     })
 
-    if (!currentRound) {
+    if (!currentCampaign) {
       return NextResponse.json(
-        { error: 'No active order round' },
+        { error: 'No active campaign' },
         { status: 400 }
       )
     }
 
     // Get products and calculate total
-    const products = await prisma.produkt.findMany({
+    const products = await prisma.product.findMany({
       where: {
-        id: { in: items.map((item: { produktId: string; antal: number }) => item.produktId) },
+        id: { in: items.map((item: { productId: string; quantity: number }) => item.productId) },
       },
     })
 
-    let totalBelopp = 0
-    const orderItemsData = items.map((item: { produktId: string; antal: number }) => {
-      const product = products.find(p => p.id === item.produktId)
+    let totalAmount = 0
+    const orderItemsData = items.map((item: { productId: string; quantity: number }) => {
+      const product = products.find(p => p.id === item.productId)
       if (!product) {
-        throw new Error(`Product ${item.produktId} not found`)
+        throw new Error(`Product ${item.productId} not found`)
       }
-      
-      const itemTotal = product.pris * item.antal
-      totalBelopp += itemTotal
-      
+
+      const itemTotal = product.price * item.quantity
+      totalAmount += itemTotal
+
       return {
-        produktId: item.produktId,
-        antal: item.antal,
-        styckpris: product.pris,
-        rabattTillampad: customer.prenumeration,
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: product.price,
+        discountApplied: customer.subscription,
       }
     })
 
     // Apply discount if customer has subscription
-    if (customer.prenumeration) {
-      totalBelopp = Math.round(totalBelopp * 0.9)
+    if (customer.subscription) {
+      totalAmount = Math.round(totalAmount * 0.9)
     }
 
     // Generate Swish QR code
-    const forening = await prisma.forening.findUnique({
-      where: { id: user.foreningId },
+    const club = await prisma.club.findUnique({
+      where: { id: user.clubId! },
     })
 
     const swishQrCode = await generateSwishQRCode({
-      amount: totalBelopp,
-      message: formatSwishMessage(`ORDER-${Date.now()}`, forening?.name || 'ForFor'),
+      amount: totalAmount,
+      message: formatSwishMessage(`ORDER-${Date.now()}`, club?.name || 'ForFor'),
     }).catch((error) => {
       console.error('Error generating Swish QR code:', error)
       return undefined
@@ -92,20 +92,21 @@ export async function POST(request: NextRequest) {
     // Create order
     const order = await prisma.order.create({
       data: {
-        kundId,
-        saljrundaId: currentRound.id,
-        saljareId: user.id,
-        totalBelopp,
+        customerId,
+        campaignId: currentCampaign.id,
+        sellerId: user.id,
+        teamId: user.teamId!,
+        totalAmount,
         swishQrCode,
         status: 'OBETALD',
-        orderItems: {
+        items: {
           create: orderItemsData,
         },
       },
       include: {
-        orderItems: {
+        items: {
           include: {
-            produkt: true,
+            product: true,
           },
         },
       },

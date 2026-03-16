@@ -6,23 +6,30 @@ import { revalidatePath } from 'next/cache'
 export async function GET() {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const teams = await prisma.lag.findMany({
+    if (!user.clubId) {
+      return NextResponse.json({ error: 'No club assigned' }, { status: 400 })
+    }
+
+    const lagGroups = await prisma.lagGroup.findMany({
       where: {
-        foreningId: user.foreningId,
+        clubId: user.clubId,
+      },
+      include: {
+        teams: true,
       },
       orderBy: {
-        namn: 'asc',
+        name: 'asc',
       },
     })
 
-    return NextResponse.json({ teams })
+    return NextResponse.json({ lagGroups })
   } catch (error) {
-    console.error('Error fetching teams:', error)
+    console.error('Error fetching lag groups:', error)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }
@@ -30,29 +37,33 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { namn } = body
-
-    if (!namn) {
-      return NextResponse.json({ error: 'Namn är obligatoriskt' }, { status: 400 })
+    if (!user.clubId) {
+      return NextResponse.json({ error: 'No club assigned' }, { status: 400 })
     }
 
-    const team = await prisma.lag.create({
+    const body = await request.json()
+    const { name } = body
+
+    if (!name) {
+      return NextResponse.json({ error: 'Namn ar obligatoriskt' }, { status: 400 })
+    }
+
+    const lagGroup = await prisma.lagGroup.create({
       data: {
-        namn,
-        foreningId: user.foreningId,
+        name,
+        clubId: user.clubId,
       },
     })
 
     revalidatePath('/admin/lag')
-    return NextResponse.json({ team }, { status: 201 })
+    return NextResponse.json({ lagGroup }, { status: 201 })
   } catch (error) {
-    console.error('Error creating team:', error)
+    console.error('Error creating lag group:', error)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

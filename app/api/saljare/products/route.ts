@@ -5,17 +5,17 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'TEAM_MEMBER') {
+
+    if (!user || user.role !== 'TEAM_MEMBER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const products = await prisma.produkt.findMany({
+    const products = await prisma.product.findMany({
       where: {
-        foreningId: user.foreningId,
+        organizationId: user.organizationId!,
       },
       orderBy: {
-        namn: 'asc',
+        name: 'asc',
       },
     })
 

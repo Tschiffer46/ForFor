@@ -15,22 +15,34 @@ export default async function KunderPage() {
     return null
   }
 
-  const customers = await prisma.kund.findMany({
+  if (!user.clubId) {
+    return <p className="text-gray-500">Ingen klubb tilldelad.</p>
+  }
+
+  const customers = await prisma.customer.findMany({
     where: {
-      adress: {
-        gata: {
-          lag: {
-            foreningId: user.foreningId,
+      address: {
+        streetRef: {
+          district: {
+            team: {
+              lagGroup: {
+                clubId: user.clubId,
+              },
+            },
           },
         },
       },
     },
     include: {
-      adress: {
+      address: {
         include: {
-          gata: {
+          streetRef: {
             include: {
-              lag: true,
+              district: {
+                include: {
+                  team: true,
+                },
+              },
             },
           },
         },
@@ -38,7 +50,7 @@ export default async function KunderPage() {
       orders: true,
     },
     orderBy: {
-      namn: 'asc',
+      name: 'asc',
     },
   })
 
@@ -48,7 +60,7 @@ export default async function KunderPage() {
         <div>
           <h1 className="text-3xl font-bold">Kunder</h1>
           <p className="text-gray-600 mt-1">
-            Hantera kunder och importera från Excel
+            Hantera kunder och importera fran Excel
           </p>
         </div>
         <KundImport
@@ -76,7 +88,7 @@ export default async function KunderPage() {
             <div className="text-center">
               <p className="text-sm text-gray-600">Med prenumeration</p>
               <p className="text-3xl font-bold text-green-600 mt-1">
-                {customers.filter((c) => c.prenumeration).length}
+                {customers.filter((c) => c.subscription).length}
               </p>
             </div>
           </CardContent>
@@ -84,7 +96,7 @@ export default async function KunderPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-sm text-gray-600">Gjort beställningar</p>
+              <p className="text-sm text-gray-600">Gjort bestallningar</p>
               <p className="text-3xl font-bold text-blue-600 mt-1">
                 {customers.filter((c) => c.orders.length > 0).length}
               </p>
@@ -110,47 +122,47 @@ export default async function KunderPage() {
                     Adress
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Lag
+                    Team
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Beställningar
+                    Bestallningar
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Prenumeration
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Åtgärder
+                    Atgarder
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {customers.map((customer) => (
                   <tr key={customer.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{customer.namn}</td>
+                    <td className="px-4 py-3 font-medium">{customer.name}</td>
                     <td className="px-4 py-3">
                       <div className="text-sm">
-                        {customer.telefon && <p>{customer.telefon}</p>}
-                        {customer.epost && (
-                          <p className="text-gray-500">{customer.epost}</p>
+                        {customer.phone && <p>{customer.phone}</p>}
+                        {customer.email && (
+                          <p className="text-gray-500">{customer.email}</p>
                         )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <div>
-                        <p>{customer.adress.gatuadress}</p>
+                        <p>{customer.address.street}</p>
                         <p className="text-gray-500">
-                          {customer.adress.postnummer} {customer.adress.stad}
+                          {customer.address.postalCode} {customer.address.city}
                         </p>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      {customer.adress.gata.lag.namn}
+                      {customer.address.streetRef.district.team.name}
                     </td>
                     <td className="px-4 py-3 text-sm text-center">
                       {customer.orders.length}
                     </td>
                     <td className="px-4 py-3">
-                      {customer.prenumeration ? (
+                      {customer.subscription ? (
                         <Badge variant="success">Ja (10% rabatt)</Badge>
                       ) : (
                         <Badge variant="outline">Nej</Badge>
@@ -167,7 +179,7 @@ export default async function KunderPage() {
                           }
                         />
                         <DeleteButton
-                          itemName={customer.namn}
+                          itemName={customer.name}
                           itemType="kund"
                           onDelete={async () => {
                             const response = await fetch(`/api/admin/kunder/${customer.id}`, {
@@ -191,7 +203,7 @@ export default async function KunderPage() {
                 {customers.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
-                      Inga kunder ännu. Importera från Excel för att komma igång.
+                      Inga kunder annu. Importera fran Excel for att komma igang.
                     </td>
                   </tr>
                 )}

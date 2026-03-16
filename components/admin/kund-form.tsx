@@ -19,10 +19,10 @@ interface KundFormProps {
   trigger: React.ReactNode
   customer: {
     id: string
-    namn: string
-    telefon: string | null
-    epost: string | null
-    prenumeration: boolean
+    name: string
+    phone: string | null
+    email: string | null
+    subscription: boolean
   }
 }
 
@@ -31,10 +31,10 @@ export function KundForm({ trigger, customer }: KundFormProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    namn: customer.namn,
-    telefon: customer.telefon || '',
-    epost: customer.epost || '',
-    prenumeration: customer.prenumeration,
+    name: customer.name,
+    phone: customer.phone || '',
+    email: customer.email || '',
+    subscription: customer.subscription,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,7 +56,7 @@ export function KundForm({ trigger, customer }: KundFormProps) {
       router.refresh()
     } catch (error) {
       console.error('Error updating customer:', error)
-      alert('Ett fel uppstod när kunden skulle uppdateras')
+      alert('Ett fel uppstod nar kunden skulle uppdateras')
     } finally {
       setLoading(false)
     }
@@ -76,51 +76,51 @@ export function KundForm({ trigger, customer }: KundFormProps) {
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="namn">Namn *</Label>
+              <Label htmlFor="name">Namn *</Label>
               <Input
-                id="namn"
-                value={formData.namn}
+                id="name"
+                value={formData.name}
                 onChange={(e) =>
-                  setFormData({ ...formData, namn: e.target.value })
+                  setFormData({ ...formData, name: e.target.value })
                 }
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="telefon">Telefon</Label>
+              <Label htmlFor="phone">Telefon</Label>
               <Input
-                id="telefon"
-                value={formData.telefon}
+                id="phone"
+                value={formData.phone}
                 onChange={(e) =>
-                  setFormData({ ...formData, telefon: e.target.value })
+                  setFormData({ ...formData, phone: e.target.value })
                 }
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="epost">E-post</Label>
+              <Label htmlFor="email">E-post</Label>
               <Input
-                id="epost"
+                id="email"
                 type="email"
-                value={formData.epost}
+                value={formData.email}
                 onChange={(e) =>
-                  setFormData({ ...formData, epost: e.target.value })
+                  setFormData({ ...formData, email: e.target.value })
                 }
               />
             </div>
 
             <div className="flex items-center gap-2">
               <input
-                id="prenumeration"
+                id="subscription"
                 type="checkbox"
-                checked={formData.prenumeration}
+                checked={formData.subscription}
                 onChange={(e) =>
-                  setFormData({ ...formData, prenumeration: e.target.checked })
+                  setFormData({ ...formData, subscription: e.target.checked })
                 }
                 className="h-4 w-4"
               />
-              <Label htmlFor="prenumeration">Prenumeration (10% rabatt)</Label>
+              <Label htmlFor="subscription">Prenumeration (10% rabatt)</Label>
             </div>
           </div>
 

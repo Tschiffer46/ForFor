@@ -1,41 +1,41 @@
 import { cookies } from 'next/headers'
+import { compare } from 'bcrypt'
 import { prisma } from './prisma'
 import { UserRole } from '@prisma/client'
 
 export interface SessionUser {
   id: string
-  namn: string
-  epost: string
-  roll: UserRole
-  foreningId: string
-  lagId?: string | null
+  name: string
+  email: string | null
+  username: string
+  role: UserRole
+  organizationId: string | null
+  clubId: string | null
+  teamId: string | null
 }
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
   const cookieStore = await cookies()
   const sessionCookie = cookieStore.get('forfor-session')
-  
-  if (!sessionCookie) {
-    return null
-  }
+
+  if (!sessionCookie) return null
 
   try {
-    const userId = sessionCookie.value
-    const user = await prisma.anvandare.findUnique({
-      where: { id: userId },
+    const user = await prisma.user.findUnique({
+      where: { id: sessionCookie.value },
       select: {
         id: true,
-        namn: true,
-        epost: true,
-        roll: true,
-        foreningId: true,
-        lagId: true,
+        name: true,
+        email: true,
+        username: true,
+        role: true,
+        organizationId: true,
+        clubId: true,
+        teamId: true,
       },
     })
-
     return user
-  } catch (error) {
-    console.error('Error getting current user:', error)
+  } catch {
     return null
   }
 }
@@ -55,92 +55,52 @@ export async function clearSession() {
   cookieStore.delete('forfor-session')
 }
 
-export async function requireAuth(requiredRole?: UserRole) {
+export async function requireAuth(requiredRole?: UserRole): Promise<SessionUser | null> {
   const user = await getCurrentUser()
-  
-  if (!user) {
-    return null
-  }
-
-  if (requiredRole && user.roll !== requiredRole) {
-    return null
-  }
-
+  if (!user) return null
+  if (requiredRole && user.role !== requiredRole) return null
   return user
 }
 
-// Mock BankID authentication
-export async function authenticateWithBankID() {
-  // In a real app, this would integrate with BankID
-  // For now, just check if a user with admin role exists
-  const user = await prisma.anvandare.findFirst({
-    where: {
-      roll: UserRole.ADMIN,
-    },
+export async function requireOrgAdmin(): Promise<SessionUser | null> {
+  return requireAuth(UserRole.ORG_ADMIN)
+}
+
+export async function requireClubAdmin(): Promise<SessionUser | null> {
+  const user = await getCurrentUser()
+  if (!user) return null
+  if (user.role !== UserRole.CLUB_ADMIN && user.role !== UserRole.ORG_ADMIN) return null
+  return user
+}
+
+export async function requireTeamMember(): Promise<SessionUser | null> {
+  return getCurrentUser()
+}
+
+export async function authenticateWithPassword(username: string, password: string): Promise<SessionUser> {
+  const user = await prisma.user.findUnique({
+    where: { username },
   })
 
   if (!user) {
-    throw new Error('Ingen admin-användare hittades')
+    throw new Error('Felaktigt användarnamn eller lösenord')
+  }
+
+  const valid = await compare(password, user.password)
+  if (!valid) {
+    throw new Error('Felaktigt användarnamn eller lösenord')
   }
 
   await setSession(user.id)
-  return user
-}
 
-// Mock Magic Link authentication
-export async function sendMagicLink(email: string) {
-  // In a real app, this would send an email
-  // For now, just generate a token and save it
-  const user = await prisma.anvandare.findFirst({
-    where: {
-      epost: email,
-      roll: UserRole.TEAM_MEMBER,
-    },
-  })
-
-  if (!user) {
-    throw new Error('Ingen användare hittades med denna e-postadress')
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    organizationId: user.organizationId,
+    clubId: user.clubId,
+    teamId: user.teamId,
   }
-
-  // Generate a secure random token
-  // TODO: In production, use crypto.randomBytes() or crypto.randomUUID() for better security
-  const token = Math.random().toString(36).substring(2, 15)
-  const expiry = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
-
-  await prisma.anvandare.update({
-    where: { id: user.id },
-    data: {
-      magicLinkToken: token,
-      magicLinkExpiry: expiry,
-    },
-  })
-
-  return token
-}
-
-export async function authenticateWithMagicLink(token: string) {
-  const user = await prisma.anvandare.findFirst({
-    where: {
-      magicLinkToken: token,
-      magicLinkExpiry: {
-        gte: new Date(),
-      },
-    },
-  })
-
-  if (!user) {
-    throw new Error('Ogiltig eller utgången länk')
-  }
-
-  // Clear the token
-  await prisma.anvandare.update({
-    where: { id: user.id },
-    data: {
-      magicLinkToken: null,
-      magicLinkExpiry: null,
-    },
-  })
-
-  await setSession(user.id)
-  return user
 }

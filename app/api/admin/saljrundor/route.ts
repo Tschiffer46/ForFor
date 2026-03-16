@@ -6,23 +6,27 @@ import { revalidatePath } from 'next/cache'
 export async function GET() {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const saljrundor = await prisma.saljrunda.findMany({
+    if (!user.clubId) {
+      return NextResponse.json({ error: 'No club assigned' }, { status: 400 })
+    }
+
+    const campaigns = await prisma.campaign.findMany({
       where: {
-        foreningId: user.foreningId,
+        clubId: user.clubId,
       },
       orderBy: {
-        forsaljningStart: 'desc',
+        salesStart: 'desc',
       },
     })
 
-    return NextResponse.json({ saljrundor })
+    return NextResponse.json({ campaigns })
   } catch (error) {
-    console.error('Error fetching saljrundor:', error)
+    console.error('Error fetching campaigns:', error)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }
@@ -30,32 +34,36 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || (user.role !== 'ORG_ADMIN' && user.role !== 'CLUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { namn, forsaljningStart, forsaljningSlut, leveransDatum } = body
-
-    if (!namn || !forsaljningStart || !forsaljningSlut || !leveransDatum) {
-      return NextResponse.json({ error: 'Alla fält är obligatoriska' }, { status: 400 })
+    if (!user.clubId) {
+      return NextResponse.json({ error: 'No club assigned' }, { status: 400 })
     }
 
-    const saljrunda = await prisma.saljrunda.create({
+    const body = await request.json()
+    const { name, salesStart, salesEnd, deliveryStart } = body
+
+    if (!name || !salesStart || !salesEnd || !deliveryStart) {
+      return NextResponse.json({ error: 'Alla falt ar obligatoriska' }, { status: 400 })
+    }
+
+    const campaign = await prisma.campaign.create({
       data: {
-        namn,
-        forsaljningStart: new Date(forsaljningStart),
-        forsaljningSlut: new Date(forsaljningSlut),
-        leveransDatum: new Date(leveransDatum),
-        foreningId: user.foreningId,
+        name,
+        salesStart: new Date(salesStart),
+        salesEnd: new Date(salesEnd),
+        deliveryStart: new Date(deliveryStart),
+        clubId: user.clubId,
       },
     })
 
-    revalidatePath('/admin/saljrundor')
-    return NextResponse.json({ saljrunda }, { status: 201 })
+    revalidatePath('/admin/kampanjer')
+    return NextResponse.json({ campaign }, { status: 201 })
   } catch (error) {
-    console.error('Error creating saljrunda:', error)
+    console.error('Error creating campaign:', error)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

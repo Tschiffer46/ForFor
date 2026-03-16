@@ -7,39 +7,48 @@ import { MapPin, Home } from 'lucide-react'
 export default async function AdresserPage() {
   const user = await getCurrentUser()
 
-  if (!user || !user.lagId) {
+  if (!user || !user.teamId) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
-          <p className="text-gray-500">Du är inte tilldelad till något lag ännu.</p>
+          <p className="text-gray-500">Du ar inte tilldelad till nagot team annu.</p>
         </CardContent>
       </Card>
     )
   }
 
-  // Get streets assigned to the team member's team
-  const streets = await prisma.gata.findMany({
-    where: { lagId: user.lagId },
+  // Get streets assigned to the team member's team via districts
+  const districts = await prisma.district.findMany({
+    where: { teamId: user.teamId },
     include: {
-      addresses: {
+      streets: {
         include: {
-          customers: {
+          addresses: {
             include: {
-              orders: true,
+              customers: {
+                include: {
+                  orders: true,
+                },
+              },
+            },
+            orderBy: {
+              street: 'asc',
             },
           },
         },
         orderBy: {
-          gatuadress: 'asc',
+          name: 'asc',
         },
       },
     },
     orderBy: {
-      namn: 'asc',
+      name: 'asc',
     },
   })
 
-  const totalAddresses = streets.reduce(
+  const allStreets = districts.flatMap((d) => d.streets)
+
+  const totalAddresses = allStreets.reduce(
     (sum, street) => sum + street.addresses.length,
     0
   )
@@ -49,22 +58,22 @@ export default async function AdresserPage() {
       <div>
         <h1 className="text-2xl font-bold">Mina adresser</h1>
         <p className="text-gray-600 mt-1">
-          {streets.length} gator, {totalAddresses} adresser
+          {allStreets.length} gator, {totalAddresses} adresser
         </p>
       </div>
 
       <div className="space-y-4">
-        {streets.map((street) => (
+        {allStreets.map((street) => (
           <Card key={street.id}>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <MapPin className="h-5 w-5 text-green-600" />
-                {street.namn}
+                {street.name}
                 <Badge variant="outline" className="ml-auto">
                   {street.addresses.length} adresser
                 </Badge>
               </CardTitle>
-              <p className="text-sm text-gray-500">{street.stad}</p>
+              <p className="text-sm text-gray-500">{street.city}</p>
             </CardHeader>
             <CardContent className="space-y-3">
               {street.addresses.map((address) => {
@@ -79,9 +88,9 @@ export default async function AdresserPage() {
                       <div className="flex items-start gap-3">
                         <Home className="h-5 w-5 text-gray-400 mt-0.5" />
                         <div>
-                          <p className="font-medium">{address.gatuadress}</p>
+                          <p className="font-medium">{address.street}</p>
                           <p className="text-sm text-gray-600">
-                            {address.postnummer} {address.stad}
+                            {address.postalCode} {address.city}
                           </p>
 
                           {hasCustomers && (
@@ -92,14 +101,14 @@ export default async function AdresserPage() {
                                   className="text-sm bg-blue-50 px-2 py-1 rounded"
                                 >
                                   <p className="font-medium text-blue-900">
-                                    {customer.namn}
+                                    {customer.name}
                                   </p>
-                                  {customer.telefon && (
+                                  {customer.phone && (
                                     <p className="text-blue-700">
-                                      {customer.telefon}
+                                      {customer.phone}
                                     </p>
                                   )}
-                                  {customer.prenumeration && (
+                                  {customer.subscription && (
                                     <Badge variant="success" className="text-xs mt-1">
                                       Prenumeration (10% rabatt)
                                     </Badge>
@@ -129,15 +138,15 @@ export default async function AdresserPage() {
           </Card>
         ))}
 
-        {streets.length === 0 && (
+        {allStreets.length === 0 && (
           <Card>
             <CardContent className="py-12 text-center">
               <MapPin className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <p className="text-gray-500">
-                Inga gator tilldelade till ditt lag ännu.
+                Inga gator tilldelade till ditt team annu.
               </p>
               <p className="text-sm text-gray-400 mt-2">
-                Kontakta din administratör för att få gator tilldelade.
+                Kontakta din administrator for att fa gator tilldelade.
               </p>
             </CardContent>
           </Card>

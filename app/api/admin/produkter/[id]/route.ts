@@ -9,24 +9,24 @@ export async function PUT(
 ) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || user.role !== 'ORG_ADMIN' || !user.organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
     const body = await request.json()
-    const { namn, beskrivning, pris, bildUrl } = body
+    const { name, description, price, imageUrl } = body
 
-    if (!namn || pris === undefined) {
-      return NextResponse.json({ error: 'Namn och pris är obligatoriska' }, { status: 400 })
+    if (!name || price === undefined) {
+      return NextResponse.json({ error: 'Namn och pris ar obligatoriska' }, { status: 400 })
     }
 
     // Verify the product belongs to the user's organization
-    const existingProduct = await prisma.produkt.findFirst({
+    const existingProduct = await prisma.product.findFirst({
       where: {
         id,
-        foreningId: user.foreningId,
+        organizationId: user.organizationId,
       },
     })
 
@@ -34,13 +34,13 @@ export async function PUT(
       return NextResponse.json({ error: 'Produkt hittades inte' }, { status: 404 })
     }
 
-    const product = await prisma.produkt.update({
+    const product = await prisma.product.update({
       where: { id },
       data: {
-        namn,
-        beskrivning: beskrivning || null,
-        pris: parseInt(pris, 10),
-        bildUrl: bildUrl || null,
+        name,
+        description: description || null,
+        price: parseInt(price, 10),
+        imageUrl: imageUrl || null,
       },
     })
 
@@ -58,18 +58,18 @@ export async function DELETE(
 ) {
   try {
     const user = await getCurrentUser()
-    
-    if (!user || user.roll !== 'ADMIN') {
+
+    if (!user || user.role !== 'ORG_ADMIN' || !user.organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
 
     // Verify the product belongs to the user's organization
-    const existingProduct = await prisma.produkt.findFirst({
+    const existingProduct = await prisma.product.findFirst({
       where: {
         id,
-        foreningId: user.foreningId,
+        organizationId: user.organizationId,
       },
     })
 
@@ -77,7 +77,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Produkt hittades inte' }, { status: 404 })
     }
 
-    await prisma.produkt.delete({
+    await prisma.product.delete({
       where: { id },
     })
 

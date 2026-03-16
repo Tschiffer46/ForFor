@@ -1,28 +1,41 @@
-import { Forening, Produkt, Lag, Gata, Adress, Kund, Saljrunda, Order, OrderRad, Anvandare } from '@prisma/client'
+import { Organization, Product, Club, LagGroup, Team, District, Street, Address, Customer, Campaign, Order, OrderItem, User } from '@prisma/client'
 
-export type ForeningWithRelations = Forening & {
-  teams?: Lag[]
-  products?: Produkt[]
-  orderRounds?: Saljrunda[]
+export type OrganizationWithRelations = Organization & {
+  clubs?: Club[]
+  products?: Product[]
 }
 
-export type LagWithRelations = Lag & {
-  streets?: Gata[]
-  teamMembers?: Anvandare[]
+export type ClubWithRelations = Club & {
+  lagGroups?: LagGroup[]
+  campaigns?: Campaign[]
 }
 
-export type GataWithRelations = Gata & {
-  addresses?: Adress[]
+export type LagGroupWithRelations = LagGroup & {
+  teams?: Team[]
+}
+
+export type TeamWithRelations = Team & {
+  districts?: District[]
+  users?: User[]
+}
+
+export type DistrictWithRelations = District & {
+  streets?: Street[]
+}
+
+export type StreetWithRelations = Street & {
+  addresses?: Address[]
 }
 
 export type OrderWithRelations = Order & {
-  kund?: Kund
-  saljare?: Anvandare
-  saljrunda?: Saljrunda
-  orderItems?: (OrderRad & { produkt?: Produkt })[]
+  customer?: Customer
+  seller?: User
+  campaign?: Campaign
+  team?: Team
+  orderItems?: (OrderItem & { product?: Product })[]
 }
 
-export type KundWithRelations = Kund & {
-  adress?: Adress
+export type CustomerWithRelations = Customer & {
+  address?: Address
   orders?: Order[]
 }
