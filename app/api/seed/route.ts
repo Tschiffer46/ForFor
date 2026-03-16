@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
+import { hash } from 'bcrypt'
 
 const prisma = new PrismaClient()
 
@@ -7,7 +8,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const secret = searchParams.get('secret')
 
-  // Simple protection so not anyone can trigger this
   if (secret !== 'forfor2026') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -16,6 +16,8 @@ export async function GET(request: Request) {
     // Clear existing data
     await prisma.orderItem.deleteMany()
     await prisma.order.deleteMany()
+    await prisma.delivery.deleteMany()
+    await prisma.addressVisit.deleteMany()
     await prisma.customer.deleteMany()
     await prisma.address.deleteMany()
     await prisma.street.deleteMany()
@@ -29,323 +31,151 @@ export async function GET(request: Request) {
     await prisma.club.deleteMany()
     await prisma.organization.deleteMany()
 
-    // Create Organization (AZ Profil)
-    const organization = await prisma.organization.create({
-      data: {
-        name: 'AZ Profil',
-      },
+    // Hash passwords
+    const adminPass = await hash('admin123', 10)
+    const clubPass = await hash('club123', 10)
+    const teamPass = await hash('team123', 10)
+
+    // Organization
+    const org = await prisma.organization.create({
+      data: { name: 'AZ Profil' },
     })
 
-    // Create Club
-    const club = await prisma.club.create({
-      data: {
-        name: 'Exempel Sportklubb',
-        slug: 'exempel-sportklubb',
-        sport: 'Fotboll',
-        organizationId: organization.id,
-      },
-    })
-
-    // Create Products (belong to Organization)
+    // Products
     const products = await Promise.all([
       prisma.product.create({
-        data: {
-          name: 'Lambi Hushallspapper (sack)',
-          description: 'Hogkvalitativt hushallspapper i sack',
-          price: 299,
-          organizationId: organization.id,
-        },
+        data: { name: 'Lambi Toalettpapper', description: 'Mjukt och starkt toalettpapper, 48 rullar per säck', price: 279, active: true, organizationId: org.id },
       }),
       prisma.product.create({
-        data: {
-          name: 'Lambi Toapapper (sack)',
-          description: 'Mjukt och starkt toapapper i sack',
-          price: 279,
-          organizationId: organization.id,
-        },
+        data: { name: 'Lambi Hushållspapper', description: 'Premium hushållspapper, 24 rullar per säck', price: 299, active: true, organizationId: org.id },
       }),
       prisma.product.create({
-        data: {
-          name: 'Serla Hushallspapper (sack)',
-          description: 'Prisvart hushallspapper i sack',
-          price: 249,
-          organizationId: organization.id,
-        },
+        data: { name: 'Serla Toalettpapper', description: 'Prisvärt toalettpapper, 48 rullar per säck', price: 229, active: true, organizationId: org.id },
       }),
       prisma.product.create({
-        data: {
-          name: 'Serla Toapapper (sack)',
-          description: 'Prisvart toapapper i sack',
-          price: 229,
-          organizationId: organization.id,
-        },
+        data: { name: 'Serla Hushållspapper', description: 'Prisvärt hushållspapper, 24 rullar per säck', price: 249, active: true, organizationId: org.id },
       }),
     ])
 
-    // Create LagGroup
-    const lagGroup = await prisma.lagGroup.create({
+    // Clubs
+    const uppakra = await prisma.club.create({
       data: {
-        name: 'Pojkar 2012',
-        clubId: club.id,
+        name: 'Uppåkra IF', slug: 'uppakra-if', sport: 'Fotboll',
+        address: 'Uppåkravägen 10', postalCode: '232 54', city: 'Uppåkra',
+        contactEmail: 'kansliet@uif.nu', website: 'https://www.uif.nu',
+        active: true, organizationId: org.id,
       },
     })
 
-    // Create Teams
-    const teamA = await prisma.team.create({
+    const torns = await prisma.club.create({
       data: {
-        name: 'Lag A',
-        lagGroupId: lagGroup.id,
+        name: 'Torns IF', slug: 'torns-if', sport: 'Fotboll',
+        address: 'Tornvallen, Stångby', postalCode: '225 91', city: 'Lund',
+        contactName: 'Joel Beckman', website: 'https://www.tornsif.se',
+        active: true, organizationId: org.id,
       },
     })
 
-    const teamB = await prisma.team.create({
-      data: {
-        name: 'Lag B',
-        lagGroupId: lagGroup.id,
-      },
-    })
+    // LagGroups + Teams for Uppåkra
+    const flickor08 = await prisma.lagGroup.create({ data: { name: 'Flickor 08', clubId: uppakra.id } })
+    const pojkar09 = await prisma.lagGroup.create({ data: { name: 'Pojkar 09', clubId: uppakra.id } })
 
-    // Create Campaign
+    const uppTeamA = await prisma.team.create({ data: { name: 'Team A', username: 'uppakra-f08-a', password: teamPass, lagGroupId: flickor08.id } })
+    const uppTeamB = await prisma.team.create({ data: { name: 'Team B', username: 'uppakra-f08-b', password: teamPass, lagGroupId: flickor08.id } })
+    await prisma.team.create({ data: { name: 'Team A', username: 'uppakra-p09-a', password: teamPass, lagGroupId: pojkar09.id } })
+
+    // LagGroups + Teams for Torns
+    const flickor10 = await prisma.lagGroup.create({ data: { name: 'Flickor 10', clubId: torns.id } })
+    await prisma.team.create({ data: { name: 'Team A', username: 'torns-f10-a', password: teamPass, lagGroupId: flickor10.id } })
+    await prisma.team.create({ data: { name: 'Team B', username: 'torns-f10-b', password: teamPass, lagGroupId: flickor10.id } })
+
+    // Districts + Streets + Addresses
+    const districtNorra = await prisma.district.create({ data: { name: 'Norra Uppåkra', teamId: uppTeamA.id } })
+    const storgatan = await prisma.street.create({ data: { name: 'Storgatan', city: 'Uppåkra', districtId: districtNorra.id } })
+
+    const addresses = await Promise.all([
+      prisma.address.create({ data: { street: 'Storgatan 1', postalCode: '232 54', city: 'Uppåkra', streetId: storgatan.id } }),
+      prisma.address.create({ data: { street: 'Storgatan 3', postalCode: '232 54', city: 'Uppåkra', streetId: storgatan.id } }),
+      prisma.address.create({ data: { street: 'Storgatan 5', postalCode: '232 54', city: 'Uppåkra', streetId: storgatan.id } }),
+    ])
+
+    const districtSodra = await prisma.district.create({ data: { name: 'Södra Uppåkra', teamId: uppTeamB.id } })
+    const kyrkogatan = await prisma.street.create({ data: { name: 'Kyrkogatan', city: 'Uppåkra', districtId: districtSodra.id } })
+    const addresses2 = await Promise.all([
+      prisma.address.create({ data: { street: 'Kyrkogatan 2', postalCode: '232 54', city: 'Uppåkra', streetId: kyrkogatan.id } }),
+      prisma.address.create({ data: { street: 'Kyrkogatan 4', postalCode: '232 54', city: 'Uppåkra', streetId: kyrkogatan.id } }),
+    ])
+
+    // Customers
+    const customer1 = await prisma.customer.create({ data: { name: 'Anna Svensson', phone: '070-1234567', email: 'anna@exempel.se', subscription: true, addressId: addresses[0].id } })
+    const customer2 = await prisma.customer.create({ data: { name: 'Lars Pettersson', phone: '070-2345678', subscription: false, addressId: addresses[1].id } })
+    await prisma.customer.create({ data: { name: 'Maria Nilsson', phone: '070-3456789', email: 'maria@exempel.se', subscription: false, addressId: addresses2[0].id } })
+
+    // Campaign
     const today = new Date()
     const nextMonth = new Date(today)
     nextMonth.setMonth(today.getMonth() + 1)
-    const deliveryDate = new Date(today)
-    deliveryDate.setMonth(today.getMonth() + 2)
+    const deliveryStart = new Date(today)
+    deliveryStart.setMonth(today.getMonth() + 2)
 
     const campaign = await prisma.campaign.create({
       data: {
-        name: 'Varforsaljning 2026',
-        salesStart: today,
-        salesEnd: nextMonth,
-        deliveryStart: deliveryDate,
-        clubId: club.id,
+        name: 'Vårförsäljning 2026', status: 'ACTIVE',
+        salesStart: today, salesEnd: nextMonth, deliveryStart,
+        recurring: true, clubId: uppakra.id,
       },
     })
 
-    // Create ORG_ADMIN User
+    await Promise.all(products.map((p) =>
+      prisma.campaignProduct.create({ data: { campaignId: campaign.id, productId: p.id } })
+    ))
+
+    // Users
     const orgAdmin = await prisma.user.create({
-      data: {
-        name: 'Org Admin',
-        email: 'orgadmin@exempel.se',
-        username: 'orgadmin',
-        password: 'placeholder',
-        role: 'ORG_ADMIN',
-        organizationId: organization.id,
-      },
+      data: { name: 'Gustav Admin', email: 'admin@azprofil.se', username: 'admin', password: adminPass, role: 'ORG_ADMIN', organizationId: org.id },
+    })
+    await prisma.user.create({
+      data: { name: 'Klubbadmin Uppåkra', email: 'admin@uppakra.se', username: 'uppakra-admin', password: clubPass, role: 'CLUB_ADMIN', organizationId: org.id, clubId: uppakra.id },
+    })
+    await prisma.user.create({
+      data: { name: 'Joel Beckman', email: 'joel@tornsif.se', username: 'torns-admin', password: clubPass, role: 'CLUB_ADMIN', organizationId: org.id, clubId: torns.id },
     })
 
-    // Create CLUB_ADMIN User
-    const clubAdmin = await prisma.user.create({
-      data: {
-        name: 'Klubb Admin',
-        email: 'admin@exempel.se',
-        username: 'klubbadmin',
-        password: 'placeholder',
-        role: 'CLUB_ADMIN',
-        organizationId: organization.id,
-        clubId: club.id,
-      },
+    const seller1 = await prisma.user.create({
+      data: { name: 'Emma Andersson', email: 'emma@exempel.se', username: 'emma', password: teamPass, role: 'TEAM_MEMBER', organizationId: org.id, clubId: uppakra.id, teamId: uppTeamA.id },
+    })
+    await prisma.user.create({
+      data: { name: 'Erik Johansson', email: 'erik@exempel.se', username: 'erik', password: teamPass, role: 'TEAM_MEMBER', organizationId: org.id, clubId: uppakra.id, teamId: uppTeamB.id },
     })
 
-    // Create Team Members
-    const teamMember1 = await prisma.user.create({
-      data: {
-        name: 'Emma Andersson',
-        email: 'emma@exempel.se',
-        username: 'emma',
-        password: 'placeholder',
-        role: 'TEAM_MEMBER',
-        organizationId: organization.id,
-        clubId: club.id,
-        teamId: teamA.id,
-      },
-    })
-
-    const teamMember2 = await prisma.user.create({
-      data: {
-        name: 'Erik Johansson',
-        email: 'erik@exempel.se',
-        username: 'erik',
-        password: 'placeholder',
-        role: 'TEAM_MEMBER',
-        organizationId: organization.id,
-        clubId: club.id,
-        teamId: teamB.id,
-      },
-    })
-
-    // Create Districts
-    const districtA = await prisma.district.create({
-      data: {
-        name: 'Distrikt Ost',
-        teamId: teamA.id,
-      },
-    })
-
-    const districtB = await prisma.district.create({
-      data: {
-        name: 'Distrikt Vast',
-        teamId: teamB.id,
-      },
-    })
-
-    // Create Streets and Addresses for Team A
-    const streetStorgatan = await prisma.street.create({
-      data: {
-        name: 'Storgatan',
-        city: 'Stockholm',
-        districtId: districtA.id,
-      },
-    })
-
-    const addresses1 = await Promise.all([
-      prisma.address.create({
-        data: {
-          street: 'Storgatan 1',
-          postalCode: '11122',
-          city: 'Stockholm',
-          streetId: streetStorgatan.id,
-        },
-      }),
-      prisma.address.create({
-        data: {
-          street: 'Storgatan 3',
-          postalCode: '11122',
-          city: 'Stockholm',
-          streetId: streetStorgatan.id,
-        },
-      }),
-      prisma.address.create({
-        data: {
-          street: 'Storgatan 5',
-          postalCode: '11122',
-          city: 'Stockholm',
-          streetId: streetStorgatan.id,
-        },
-      }),
-    ])
-
-    // Create Streets and Addresses for Team B
-    const streetKungsgatan = await prisma.street.create({
-      data: {
-        name: 'Kungsgatan',
-        city: 'Stockholm',
-        districtId: districtB.id,
-      },
-    })
-
-    const addresses2 = await Promise.all([
-      prisma.address.create({
-        data: {
-          street: 'Kungsgatan 10',
-          postalCode: '11143',
-          city: 'Stockholm',
-          streetId: streetKungsgatan.id,
-        },
-      }),
-      prisma.address.create({
-        data: {
-          street: 'Kungsgatan 12',
-          postalCode: '11143',
-          city: 'Stockholm',
-          streetId: streetKungsgatan.id,
-        },
-      }),
-    ])
-
-    // Create sample customers
-    const customer1 = await prisma.customer.create({
-      data: {
-        name: 'Anna Svensson',
-        phone: '070-3333333',
-        email: 'anna@exempel.se',
-        subscription: true,
-        addressId: addresses1[0].id,
-      },
-    })
-
-    const customer2 = await prisma.customer.create({
-      data: {
-        name: 'Lars Pettersson',
-        phone: '070-4444444',
-        subscription: false,
-        addressId: addresses1[1].id,
-      },
-    })
-
-    const customer3 = await prisma.customer.create({
-      data: {
-        name: 'Maria Nilsson',
-        phone: '070-5555555',
-        email: 'maria@exempel.se',
-        subscription: false,
-        addressId: addresses2[0].id,
-      },
-    })
-
-    // Create sample orders
+    // Sample Orders
     await prisma.order.create({
       data: {
-        status: 'BETALD',
-        totalAmount: 269,
-        customerId: customer1.id,
-        campaignId: campaign.id,
-        sellerId: teamMember1.id,
-        teamId: teamA.id,
-        items: {
-          create: [
-            {
-              quantity: 1,
-              unitPrice: 299,
-              discountApplied: true,
-              productId: products[0].id,
-            },
-          ],
-        },
+        status: 'BETALD', totalAmount: 251, customerId: customer1.id,
+        campaignId: campaign.id, teamId: uppTeamA.id, sellerId: seller1.id,
+        items: { create: [{ quantity: 1, unitPrice: 279, discountApplied: true, productId: products[0].id }] },
       },
     })
-
     await prisma.order.create({
       data: {
-        status: 'OBETALD',
-        totalAmount: 528,
-        customerId: customer2.id,
-        campaignId: campaign.id,
-        sellerId: teamMember1.id,
-        teamId: teamA.id,
-        items: {
-          create: [
-            {
-              quantity: 1,
-              unitPrice: 279,
-              discountApplied: false,
-              productId: products[1].id,
-            },
-            {
-              quantity: 1,
-              unitPrice: 249,
-              discountApplied: false,
-              productId: products[2].id,
-            },
-          ],
-        },
+        status: 'OBETALD', totalAmount: 528, customerId: customer2.id,
+        campaignId: campaign.id, teamId: uppTeamA.id, sellerId: seller1.id,
+        items: { create: [
+          { quantity: 1, unitPrice: 279, discountApplied: false, productId: products[0].id },
+          { quantity: 1, unitPrice: 249, discountApplied: false, productId: products[3].id },
+        ]},
       },
     })
 
     return NextResponse.json({
       success: true,
       message: 'Databas populerad med testdata!',
-      data: {
-        organization: organization.name,
-        club: club.name,
-        products: products.length,
-        teams: [teamA.name, teamB.name],
-        orgAdmin: orgAdmin.email,
-        clubAdmin: clubAdmin.email,
-        teamMembers: [teamMember1.email, teamMember2.email],
-        streets: ['Storgatan', 'Kungsgatan'],
-        customers: [customer1.name, customer2.name, customer3.name],
-        campaign: campaign.name,
+      credentials: {
+        orgAdmin: { username: 'admin', password: 'admin123' },
+        clubAdminUppakra: { username: 'uppakra-admin', password: 'club123' },
+        clubAdminTorns: { username: 'torns-admin', password: 'club123' },
+        sellerEmma: { username: 'emma', password: 'team123' },
+        sellerErik: { username: 'erik', password: 'team123' },
       },
     })
   } catch (error) {
