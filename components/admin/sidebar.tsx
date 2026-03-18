@@ -12,8 +12,10 @@ interface SidebarProps {
 
 const orgAdminNav = [
   { href: '/admin', label: 'Dashboard', icon: Home },
+  { href: '/admin/bestallningar', label: 'Beställningar', icon: ShoppingCart },
   { href: '/admin/klubbar', label: 'Klubbar', icon: Building2 },
   { href: '/admin/produkter', label: 'Produkter', icon: Package },
+  { href: '/admin/leverantorer', label: 'Leverantörer', icon: Truck },
 ]
 
 const clubAdminNav = [
@@ -44,7 +46,7 @@ export function AdminSidebar({ clubName, userRole }: SidebarProps) {
 
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => {
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
           return (
             <Link
               key={item.href}

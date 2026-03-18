@@ -5,6 +5,9 @@ import { getCurrentUser } from '@/lib/auth'
 import { notFound } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import { MapPin, Globe, Mail, Phone, User } from 'lucide-react'
+import { ClubLogo } from '@/components/admin/club-logo'
+import { ClubColors } from '@/components/admin/club-colors'
+import { ClubKeyPersons } from '@/components/admin/club-key-persons'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -31,6 +34,9 @@ export default async function ClubDetailPage({ params }: Props) {
         orderBy: { salesStart: 'desc' },
         take: 5,
       },
+      keyPersons: {
+        orderBy: { role: 'asc' },
+      },
       _count: {
         select: { users: true },
       },
@@ -50,16 +56,20 @@ export default async function ClubDetailPage({ params }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{club.name}</h1>
-          {club.sport && <p className="text-gray-600 mt-1">{club.sport}</p>}
+        <div className="flex items-center gap-4">
+          {/* Logo (#7) */}
+          <ClubLogo slug={club.slug} logoUrl={club.logoUrl} />
+          <div>
+            <h1 className="text-3xl font-bold">{club.name}</h1>
+            {club.sport && <p className="text-gray-600 mt-1">{club.sport}</p>}
+          </div>
         </div>
         <Badge variant={club.active ? 'success' : 'secondary'} className="text-base px-4 py-1">
           {club.active ? 'Aktiv' : 'Inaktiv'}
         </Badge>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-600">Beställningar</CardTitle></CardHeader>
           <CardContent><div className="text-2xl font-bold">{totalOrders}</div></CardContent>
@@ -117,6 +127,22 @@ export default async function ClubDetailPage({ params }: Props) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Key Persons (#8) */}
+      <Card>
+        <CardHeader><CardTitle>Nyckelpersoner</CardTitle></CardHeader>
+        <CardContent>
+          <ClubKeyPersons slug={club.slug} keyPersons={club.keyPersons} />
+        </CardContent>
+      </Card>
+
+      {/* Club Colors (#11) */}
+      <Card>
+        <CardHeader><CardTitle>Klubbfärger</CardTitle></CardHeader>
+        <CardContent>
+          <ClubColors slug={club.slug} color1={club.color1} color2={club.color2} color3={club.color3} color4={club.color4} />
+        </CardContent>
+      </Card>
     </div>
   )
 }

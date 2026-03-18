@@ -28,6 +28,9 @@ RUN apk add --no-cache openssl
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+# Create uploads directory for persistent file storage
+RUN mkdir -p /app/uploads/products /app/uploads/clubs
+
 # Copy Prisma client, CLI, and schema for migrations
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma

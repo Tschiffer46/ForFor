@@ -41,6 +41,12 @@ enum DeliveryStatus {
   MISSLYCKAD
 }
 
+enum SupplierOrderStatus {
+  PENDING
+  ORDERED
+  DELIVERED
+}
+
 // ─── Organization (AZ Profil) ───────────────────────────
 
 model Organization {
@@ -49,9 +55,10 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  clubs    Club[]
-  products Product[]
-  users    User[]
+  clubs     Club[]
+  products  Product[]
+  users     User[]
+  suppliers Supplier[]
 
   @@map("organizations")
 }
@@ -59,18 +66,28 @@ model Organization {
 // ─── Product (managed at org level) ─────────────────────
 
 model Product {
-  id          String  @id @default(cuid())
-  name        String
-  description String?
-  price       Int     // Price in SEK (whole number)
-  imageUrl    String?
-  active      Boolean @default(true)
+  id               String  @id @default(cuid())
+  name             String
+  description      String?
+  price            Int      // Price in SEK (whole number)
+  listPrice        Int?     // What AZ Profil charges clubs (SEK)
+  imageUrl         String?
+  active           Boolean  @default(true)
+  archived         Boolean  @default(false)
+  size             String?  // e.g. "500g", "1kg"
+  weightPerUnit    Float?   // kg per unit
+  sacksPerPallet   Int?
+  mustBuyPerPallet Boolean  @default(false)
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   campaignProducts CampaignProduct[]
   orderItems       OrderItem[]
+  images           ProductImage[]
+  productSuppliers ProductSupplier[]
+  priceCampaigns   PriceCampaign[]
+  supplierOrders   SupplierOrder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -92,14 +109,20 @@ model Club {
   contactEmail String?
   contactPhone String?
   website      String?
+  logoUrl      String?
+  color1       String? // Club colors for sales page
+  color2       String?
+  color3       String?
+  color4       String?
   active       Boolean @default(true)
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  lagGroups LagGroup[]
-  campaigns Campaign[]
-  users     User[]
+  lagGroups  LagGroup[]
+  campaigns  Campaign[]
+  users      User[]
+  keyPersons ClubKeyPerson[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -345,6 +368,118 @@ model Delivery {
   updatedAt DateTime @updatedAt
 
   @@map("deliveries")
+}
+
+// ─── Supplier (AZ Profil's suppliers) ─────────────────────
+
+model Supplier {
+  id           String  @id @default(cuid())
+  name         String
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  notes        String?
+  active       Boolean @default(true)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  products       ProductSupplier[]
+  supplierOrders SupplierOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("suppliers")
+}
+
+// ─── ProductSupplier (which suppliers sell which products) ─
+
+model ProductSupplier {
+  id        String  @id @default(cuid())
+  sellPrice Int     // Supplier's sell price to AZ Profil (SEK)
+  isCurrent Boolean @default(false) // "Nuvarande" supplier
+
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, supplierId])
+  @@map("product_suppliers")
+}
+
+// ─── SupplierOrder (orders from AZ Profil to suppliers) ───
+
+model SupplierOrder {
+  id               String              @id @default(cuid())
+  quantity         Int
+  status           SupplierOrderStatus @default(PENDING)
+  orderDate        DateTime?
+  expectedDelivery DateTime?
+  actualDelivery   DateTime?
+  notes            String?
+
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("supplier_orders")
+}
+
+// ─── ClubKeyPerson (Ordförande, Försäljningsansvarig, etc.) ─
+
+model ClubKeyPerson {
+  id    String  @id @default(cuid())
+  role  String  // 'ordforande', 'forsaljningsansvarig', 'nyckelperson_1', 'nyckelperson_2', 'nyckelperson_3'
+  name  String
+  email String?
+  phone String?
+
+  clubId String
+  club   Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, role])
+  @@map("club_key_persons")
+}
+
+// ─── ProductImage (up to 3 images per product) ───────────
+
+model ProductImage {
+  id        String @id @default(cuid())
+  imagePath String
+  sortOrder Int    @default(0)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("product_images")
+}
+
+// ─── PriceCampaign (temporary discounts on products) ─────
+
+model PriceCampaign {
+  id            String  @id @default(cuid())
+  discountType  String  // 'percentage' or 'absolute'
+  discountValue Int     // Percentage (e.g. 10) or SEK amount
+  startDate     DateTime
+  endDate       DateTime
+  description   String?
+  active        Boolean @default(true)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("price_campaigns")
 }
 
 // ─── User ───────────────────────────────────────────────

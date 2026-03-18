@@ -37,7 +37,12 @@ export default async function ClubsPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-green-600" />
+                    {club.logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={`/api/uploads/${club.logoUrl}`} alt="" className="h-8 w-8 rounded object-cover" />
+                    ) : (
+                      <Building2 className="h-5 w-5 text-green-600" />
+                    )}
                     {club.name}
                   </CardTitle>
                   <Badge variant={club.active ? 'success' : 'secondary'}>
