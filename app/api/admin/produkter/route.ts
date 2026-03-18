@@ -12,6 +12,11 @@ export async function GET() {
 
     const products = await prisma.product.findMany({
       where: { organizationId: user.organizationId },
+      include: {
+        images: { orderBy: { sortOrder: 'asc' } },
+        productSuppliers: { include: { supplier: true } },
+        _count: { select: { priceCampaigns: true } },
+      },
       orderBy: { name: 'asc' },
     })
 
@@ -30,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, description, price, imageUrl } = body
+    const { name, description, price, listPrice, imageUrl, size, weightPerUnit, sacksPerPallet, mustBuyPerPallet } = body
 
     if (!name || price === undefined) {
       return NextResponse.json({ error: 'Namn och pris kravs' }, { status: 400 })
@@ -41,7 +46,12 @@ export async function POST(request: NextRequest) {
         name,
         description: description || null,
         price: parseInt(price, 10),
+        listPrice: listPrice ? parseInt(listPrice, 10) : null,
         imageUrl: imageUrl || null,
+        size: size || null,
+        weightPerUnit: weightPerUnit ? parseFloat(weightPerUnit) : null,
+        sacksPerPallet: sacksPerPallet ? parseInt(sacksPerPallet, 10) : null,
+        mustBuyPerPallet: mustBuyPerPallet || false,
         organizationId: user.organizationId,
       },
     })
