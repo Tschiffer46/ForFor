@@ -73,8 +73,12 @@ export default function NyBestallningPage() {
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
 
-  // New customer form
+  // New customer/address form
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false)
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false)
+  const [newAddressStreet, setNewAddressStreet] = useState('')
+  const [newAddressPostalCode, setNewAddressPostalCode] = useState('')
+  const [newAddressCity, setNewAddressCity] = useState('')
   const [newCustomerName, setNewCustomerName] = useState('')
   const [newCustomerPhone, setNewCustomerPhone] = useState('')
   const [newCustomerEmail, setNewCustomerEmail] = useState('')
@@ -139,7 +143,6 @@ export default function NyBestallningPage() {
   function selectAddress(address: Address) {
     setSelectedAddress(address)
     if (address.customers.length === 1) {
-      // Auto-select if only one customer
       setSelectedCustomer(address.customers[0])
       setStep('products')
     } else if (address.customers.length === 0) {
@@ -174,6 +177,33 @@ export default function NyBestallningPage() {
       }
     } catch (error) {
       console.error('Error creating customer:', error)
+    }
+  }
+
+  async function createCustomerWithAddress() {
+    if (!newCustomerName.trim() || !newAddressStreet.trim()) return
+    try {
+      const res = await fetch('/api/saljare/customers/with-address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: newCustomerName.trim(),
+          phone: newCustomerPhone || undefined,
+          email: newCustomerEmail || undefined,
+          streetAddress: newAddressStreet.trim(),
+          postalCode: newAddressPostalCode || undefined,
+          city: newAddressCity || undefined,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setSelectedCustomer(data)
+        setSelectedAddress(data.address)
+        setShowNewAddressForm(false)
+        setStep('products')
+      }
+    } catch (error) {
+      console.error('Error creating customer with address:', error)
     }
   }
 
@@ -268,8 +298,9 @@ export default function NyBestallningPage() {
     if (step === 'products') {
       setStep('identify')
       setOrderItems([])
-    } else if (step === 'identify' && (showNewCustomerForm || selectedAddress)) {
+    } else if (step === 'identify' && (showNewCustomerForm || showNewAddressForm || selectedAddress)) {
       setShowNewCustomerForm(false)
+      setShowNewAddressForm(false)
       setSelectedAddress(null)
       setSelectedCustomer(null)
     }
@@ -278,17 +309,17 @@ export default function NyBestallningPage() {
   // ─── Render ────────────────────────────────────────────
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Header with back button */}
       <div className="flex items-center gap-3">
-        {(step !== 'identify' || selectedAddress) && step !== 'payment' && (
+        {(step !== 'identify' || selectedAddress || showNewAddressForm) && step !== 'payment' && (
           <Button variant="outline" size="icon" onClick={goBack}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
         )}
         <div>
-          <h1 className="text-2xl font-bold">Ny beställning</h1>
-          <p className="text-sm text-gray-600">
+          <h1 className="text-xl font-bold">Ny beställning</h1>
+          <p className="text-xs text-gray-600">
             {step === 'identify' && 'Hitta kund'}
             {step === 'products' && 'Välj produkter'}
             {step === 'payment' && 'Betalning'}
@@ -297,7 +328,7 @@ export default function NyBestallningPage() {
       </div>
 
       {/* ─── STEP 1: Identify Customer ─── */}
-      {step === 'identify' && !selectedAddress && (
+      {step === 'identify' && !selectedAddress && !showNewAddressForm && (
         <>
           {/* Search box */}
           <div className="relative">
@@ -306,170 +337,259 @@ export default function NyBestallningPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Sök gatunamn..."
-              className="h-14 text-lg pl-10"
+              className="h-12 text-base pl-10"
               autoFocus
             />
           </div>
 
-          {/* Search results */}
-          {searching && <p className="text-center text-gray-500 py-4">Söker...</p>}
+          {/* Search results — compact list */}
+          {searching && <p className="text-center text-gray-500 py-3 text-sm">Söker...</p>}
 
           {!searching && addresses.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {addresses.map((address) => (
-                <Card
+                <button
                   key={address.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  className="w-full text-left p-3 rounded-lg border bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   onClick={() => selectAddress(address)}
                 >
-                  <CardContent className="p-4">
-                    <p className="font-bold text-base">{address.street}</p>
-                    <p className="text-sm text-gray-600">
-                      {address.postalCode} {address.city}
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">{address.street}</p>
+                      <p className="text-xs text-gray-500">{address.postalCode} {address.city}</p>
+                    </div>
                     {address.customers.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {address.customers.map((c) => (
-                          <Badge key={c.id} variant="outline" className="text-xs">
-                            {c.name}
-                          </Badge>
-                        ))}
-                      </div>
+                      <span className="text-xs text-gray-400">
+                        {address.customers.length} kund{address.customers.length > 1 ? 'er' : ''}
+                      </span>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </button>
               ))}
             </div>
           )}
 
+          {/* No results — offer to create new address */}
           {!searching && hasSearched && addresses.length === 0 && (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-gray-500">Ingen adress hittades</p>
-                <p className="text-sm text-gray-400 mt-1">Försök med ett annat gatunamn</p>
-              </CardContent>
-            </Card>
+            <div className="space-y-3">
+              <div className="py-4 text-center">
+                <p className="text-gray-500 text-sm">Ingen adress hittades för &quot;{searchQuery}&quot;</p>
+              </div>
+              <Button
+                className="w-full h-12"
+                onClick={() => {
+                  setNewAddressStreet(searchQuery)
+                  setShowNewAddressForm(true)
+                }}
+                style={{ backgroundColor: 'var(--club-primary, #15803d)' }}
+              >
+                + Lägg till ny adress och kund
+              </Button>
+            </div>
           )}
         </>
       )}
 
+      {/* New address + customer form (when address not found) */}
+      {step === 'identify' && showNewAddressForm && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Ny adress och kund</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600">Gatuadress *</label>
+              <Input
+                value={newAddressStreet}
+                onChange={(e) => setNewAddressStreet(e.target.value)}
+                placeholder="T.ex. Kyrkogatan 5"
+                className="h-10"
+                autoFocus
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-medium text-gray-600">Postnummer</label>
+                <Input
+                  value={newAddressPostalCode}
+                  onChange={(e) => setNewAddressPostalCode(e.target.value)}
+                  placeholder="123 45"
+                  className="h-10"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Ort</label>
+                <Input
+                  value={newAddressCity}
+                  onChange={(e) => setNewAddressCity(e.target.value)}
+                  placeholder="Ort"
+                  className="h-10"
+                />
+              </div>
+            </div>
+            <hr />
+            <div>
+              <label className="text-xs font-medium text-gray-600">Kundnamn *</label>
+              <Input
+                value={newCustomerName}
+                onChange={(e) => setNewCustomerName(e.target.value)}
+                placeholder="Kundens namn"
+                className="h-10"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600">Telefon</label>
+              <Input
+                value={newCustomerPhone}
+                onChange={(e) => setNewCustomerPhone(e.target.value)}
+                placeholder="070-1234567"
+                className="h-10"
+                type="tel"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600">E-post</label>
+              <Input
+                type="email"
+                value={newCustomerEmail}
+                onChange={(e) => setNewCustomerEmail(e.target.value)}
+                placeholder="kund@exempel.se"
+                className="h-10"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                className="flex-1 h-10"
+                onClick={() => setShowNewAddressForm(false)}
+              >
+                Avbryt
+              </Button>
+              <Button
+                className="flex-1 h-10"
+                onClick={createCustomerWithAddress}
+                disabled={!newCustomerName.trim() || !newAddressStreet.trim()}
+                style={{ backgroundColor: 'var(--club-primary, #15803d)' }}
+              >
+                Skapa
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Address selected — show customers or new customer form */}
       {step === 'identify' && selectedAddress && !showNewCustomerForm && (
-        <div className="space-y-3">
-          <Card className="border" style={{
-            backgroundColor: 'color-mix(in srgb, var(--club-primary, #15803d) 5%, white)',
-            borderColor: 'color-mix(in srgb, var(--club-primary, #15803d) 20%, white)',
-          }}>
-            <CardContent className="p-3">
-              <p className="text-sm font-medium">{selectedAddress.street}</p>
-              <p className="text-xs text-gray-600">{selectedAddress.postalCode} {selectedAddress.city}</p>
-            </CardContent>
-          </Card>
+        <div className="space-y-2">
+          <div
+            className="p-2 rounded-lg border text-xs"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--club-primary, #15803d) 5%, white)',
+              borderColor: 'color-mix(in srgb, var(--club-primary, #15803d) 20%, white)',
+            }}
+          >
+            <span className="font-medium">{selectedAddress.street}</span>
+            <span className="text-gray-500 ml-2">{selectedAddress.postalCode} {selectedAddress.city}</span>
+          </div>
 
           {selectedAddress.customers.length > 0 && (
             <>
-              <p className="text-sm font-medium text-gray-700">Kunder på denna adress:</p>
+              <p className="text-xs font-medium text-gray-500">Kunder på denna adress:</p>
               {selectedAddress.customers.map((customer) => (
-                <Card
+                <button
                   key={customer.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  className="w-full text-left p-3 rounded-lg border bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   onClick={() => selectCustomer(customer)}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-bold text-base">{customer.name}</p>
-                        {customer.phone && (
-                          <p className="text-sm text-gray-600">{customer.phone}</p>
-                        )}
-                        {customer.email && (
-                          <p className="text-sm text-gray-600">{customer.email}</p>
-                        )}
-                      </div>
-                      {customer.subscription && (
-                        <Badge variant="success" className="text-xs">10% rabatt</Badge>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium text-sm">{customer.name}</p>
+                      {customer.phone && (
+                        <p className="text-xs text-gray-500">{customer.phone}</p>
                       )}
                     </div>
-                    {/* Recent orders */}
-                    {customer.orders.length > 0 && (
-                      <div className="mt-2 pt-2 border-t">
-                        <p className="text-xs font-medium text-gray-500 mb-1">Senaste beställningar:</p>
-                        {customer.orders.map((order) => (
-                          <div key={order.id} className="flex justify-between text-xs text-gray-600">
-                            <span>
-                              {order.items.map((i) => `${i.quantity}x ${i.product.name}`).join(', ')}
-                            </span>
-                            <span className="font-medium">{order.totalAmount} kr</span>
-                          </div>
-                        ))}
-                      </div>
+                    {customer.subscription && (
+                      <Badge variant="success" className="text-xs">10% rabatt</Badge>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                  {customer.orders.length > 0 && (
+                    <div className="mt-1.5 pt-1.5 border-t">
+                      <p className="text-xs text-gray-400 mb-0.5">Senaste:</p>
+                      {customer.orders.slice(0, 2).map((order) => (
+                        <div key={order.id} className="flex justify-between text-xs text-gray-500">
+                          <span className="truncate mr-2">
+                            {order.items.map((i) => `${i.quantity}x ${i.product.name}`).join(', ')}
+                          </span>
+                          <span className="font-medium flex-shrink-0">{order.totalAmount} kr</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </button>
               ))}
             </>
           )}
 
           <Button
             variant="outline"
-            className="w-full h-12"
+            className="w-full h-10 text-sm"
             onClick={() => setShowNewCustomerForm(true)}
           >
-            + Ny kund på denna adress
+            + Ny kund
           </Button>
         </div>
       )}
 
-      {/* New customer form */}
+      {/* New customer form (on existing address) */}
       {step === 'identify' && showNewCustomerForm && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Ny kund</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Ny kund</CardTitle>
             {selectedAddress && (
-              <p className="text-sm text-gray-600">{selectedAddress.street}</p>
+              <p className="text-xs text-gray-600">{selectedAddress.street}</p>
             )}
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             <div>
-              <label className="text-sm font-medium">Namn *</label>
+              <label className="text-xs font-medium text-gray-600">Namn *</label>
               <Input
                 value={newCustomerName}
                 onChange={(e) => setNewCustomerName(e.target.value)}
                 placeholder="Kundens namn"
-                className="h-12 text-base"
+                className="h-10"
                 autoFocus
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Telefon</label>
+              <label className="text-xs font-medium text-gray-600">Telefon</label>
               <Input
                 value={newCustomerPhone}
                 onChange={(e) => setNewCustomerPhone(e.target.value)}
                 placeholder="070-1234567"
-                className="h-12 text-base"
+                className="h-10"
                 type="tel"
               />
             </div>
             <div>
-              <label className="text-sm font-medium">E-post</label>
+              <label className="text-xs font-medium text-gray-600">E-post</label>
               <Input
                 type="email"
                 value={newCustomerEmail}
                 onChange={(e) => setNewCustomerEmail(e.target.value)}
                 placeholder="kund@exempel.se"
-                className="h-12 text-base"
+                className="h-10"
               />
             </div>
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                className="flex-1 h-12"
+                className="flex-1 h-10"
                 onClick={() => setShowNewCustomerForm(false)}
               >
                 Avbryt
               </Button>
               <Button
-                className="flex-1 h-12"
+                className="flex-1 h-10"
                 onClick={createCustomer}
                 disabled={!newCustomerName.trim()}
                 style={{ backgroundColor: 'var(--club-primary, #15803d)' }}
@@ -485,103 +605,101 @@ export default function NyBestallningPage() {
       {step === 'products' && (
         <>
           {/* Customer info bar */}
-          <Card className="border" style={{
-            backgroundColor: 'color-mix(in srgb, var(--club-primary, #15803d) 5%, white)',
-            borderColor: 'color-mix(in srgb, var(--club-primary, #15803d) 20%, white)',
-          }}>
-            <CardContent className="p-3 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">{selectedCustomer?.name}</p>
-                <p className="text-xs text-gray-600">{selectedAddress?.street}</p>
-              </div>
-              {selectedCustomer?.subscription && (
-                <Badge variant="success" className="text-xs">10% rabatt</Badge>
-              )}
-            </CardContent>
-          </Card>
+          <div
+            className="p-2 rounded-lg border text-xs flex items-center justify-between"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--club-primary, #15803d) 5%, white)',
+              borderColor: 'color-mix(in srgb, var(--club-primary, #15803d) 20%, white)',
+            }}
+          >
+            <div>
+              <span className="font-medium">{selectedCustomer?.name}</span>
+              <span className="text-gray-500 ml-2">{selectedAddress?.street}</span>
+            </div>
+            {selectedCustomer?.subscription && (
+              <Badge variant="success" className="text-xs">10%</Badge>
+            )}
+          </div>
 
           {loadingProducts ? (
-            <p className="text-center text-gray-500 py-8">Laddar produkter...</p>
+            <p className="text-center text-gray-500 py-8 text-sm">Laddar produkter...</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 pb-44">
               {products.map((product) => {
                 const item = orderItems.find((i) => i.productId === product.id)
                 const quantity = item?.quantity || 0
 
                 return (
-                  <Card key={product.id}>
-                    <CardContent className="p-4">
-                      <div className="flex gap-3">
-                        {/* Product image */}
-                        {product.images[0] && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={`/api/uploads/${product.images[0].imagePath}`}
-                            alt={product.name}
-                            className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold">{product.name}</p>
-                          {product.size && (
-                            <p className="text-xs text-gray-500">{product.size}</p>
-                          )}
-                          {product.description && (
-                            <p className="text-sm text-gray-600 truncate">{product.description}</p>
-                          )}
-                          <p className="text-lg font-bold mt-1" style={{ color: 'var(--club-primary, #15803d)' }}>
+                  <div key={product.id} className="p-3 rounded-lg border bg-white">
+                    <div className="flex items-center gap-3">
+                      {/* Product image */}
+                      {product.images[0] && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={`/api/uploads/${product.images[0].imagePath}`}
+                          alt={product.name}
+                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline justify-between">
+                          <p className="font-medium text-sm truncate">{product.name}</p>
+                          <p className="font-bold text-sm ml-2 flex-shrink-0" style={{ color: 'var(--club-primary, #15803d)' }}>
                             {product.price} kr
                           </p>
                         </div>
+                        {product.size && (
+                          <p className="text-xs text-gray-400">{product.size}</p>
+                        )}
                       </div>
+                    </div>
 
-                      {/* Quantity controls */}
-                      <div className="flex items-center justify-center gap-4 mt-3">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-10 w-10"
-                          onClick={() => updateQuantity(product.id, quantity - 1)}
-                          disabled={quantity === 0}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <span className="text-2xl font-bold min-w-[3ch] text-center">
-                          {quantity}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-10 w-10"
-                          onClick={() => updateQuantity(product.id, quantity + 1)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                    {/* Quantity controls — inline */}
+                    <div className="flex items-center justify-end gap-3 mt-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => updateQuantity(product.id, quantity - 1)}
+                        disabled={quantity === 0}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="text-lg font-bold min-w-[2ch] text-center">
+                        {quantity}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => updateQuantity(product.id, quantity + 1)}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
                 )
               })}
             </div>
           )}
 
-          {/* Sticky total bar */}
+          {/* Sticky total bar — compact */}
           {orderItems.length > 0 && (
-            <div className="fixed bottom-20 left-0 right-0 bg-white border-t shadow-lg p-4 z-10">
+            <div className="fixed bottom-20 left-0 right-0 bg-white border-t shadow-lg p-3 z-10">
               <div className="max-w-2xl mx-auto">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-bold text-lg">Total:</span>
-                  <span className="font-bold text-2xl" style={{ color: 'var(--club-primary, #15803d)' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <span className="font-bold">Total: </span>
+                    {selectedCustomer?.subscription && (
+                      <span className="text-xs text-gray-500">(inkl. 10% rabatt)</span>
+                    )}
+                  </div>
+                  <span className="font-bold text-xl" style={{ color: 'var(--club-primary, #15803d)' }}>
                     {calculateTotal()} kr
                   </span>
                 </div>
-                {selectedCustomer?.subscription && (
-                  <p className="text-xs mb-2" style={{ color: 'var(--club-primary, #15803d)' }}>
-                    Inkl. 10% prenumerationsrabatt
-                  </p>
-                )}
                 <Button
-                  className="w-full h-14 text-lg"
+                  className="w-full h-12 text-base"
                   onClick={submitOrder}
                   disabled={submitting}
                   style={{ backgroundColor: 'var(--club-primary, #15803d)' }}
