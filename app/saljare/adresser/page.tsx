@@ -1,8 +1,8 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
-import { MapPin, Home } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { MapPin } from 'lucide-react'
+import { AddressList } from './address-list'
 
 export default async function AdresserPage() {
   const user = await getCurrentUser()
@@ -11,13 +11,23 @@ export default async function AdresserPage() {
     return (
       <Card>
         <CardContent className="py-12 text-center">
-          <p className="text-gray-500">Du ar inte tilldelad till nagot team annu.</p>
+          <p className="text-gray-500">Du är inte tilldelad till något team ännu.</p>
         </CardContent>
       </Card>
     )
   }
 
-  // Get streets assigned to the team member's team via districts
+  // Get current campaign for visit tracking
+  const currentCampaign = await prisma.campaign.findFirst({
+    where: {
+      clubId: user.clubId!,
+      salesStart: { lte: new Date() },
+      salesEnd: { gte: new Date() },
+    },
+    select: { id: true },
+  })
+
+  // Get streets with addresses, customers, and recent visits
   const districts = await prisma.district.findMany({
     where: { teamId: user.teamId },
     include: {
@@ -27,31 +37,52 @@ export default async function AdresserPage() {
             include: {
               customers: {
                 include: {
-                  orders: true,
+                  orders: { select: { id: true } },
                 },
               },
+              visits: {
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: { result: true, createdAt: true },
+              },
             },
-            orderBy: {
-              street: 'asc',
-            },
+            orderBy: { street: 'asc' },
           },
         },
-        orderBy: {
-          name: 'asc',
-        },
+        orderBy: { name: 'asc' },
       },
     },
-    orderBy: {
-      name: 'asc',
-    },
+    orderBy: { name: 'asc' },
   })
 
   const allStreets = districts.flatMap((d) => d.streets)
+  const totalAddresses = allStreets.reduce((sum, s) => sum + s.addresses.length, 0)
 
-  const totalAddresses = allStreets.reduce(
-    (sum, street) => sum + street.addresses.length,
-    0
-  )
+  // Serialize for client component
+  const streetsData = allStreets.map((street) => ({
+    id: street.id,
+    name: street.name,
+    city: street.city,
+    addresses: street.addresses.map((addr) => ({
+      id: addr.id,
+      street: addr.street,
+      postalCode: addr.postalCode,
+      city: addr.city,
+      customers: addr.customers.map((c) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        subscription: c.subscription,
+        orderCount: c.orders.length,
+      })),
+      lastVisit: addr.visits[0]
+        ? {
+            result: addr.visits[0].result,
+            date: addr.visits[0].createdAt.toISOString(),
+          }
+        : null,
+    })),
+  }))
 
   return (
     <div className="space-y-6">
@@ -62,96 +93,19 @@ export default async function AdresserPage() {
         </p>
       </div>
 
-      <div className="space-y-4">
-        {allStreets.map((street) => (
-          <Card key={street.id}>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <MapPin className="h-5 w-5 text-green-600" />
-                {street.name}
-                <Badge variant="outline" className="ml-auto">
-                  {street.addresses.length} adresser
-                </Badge>
-              </CardTitle>
-              <p className="text-sm text-gray-500">{street.city}</p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {street.addresses.map((address) => {
-                const hasCustomers = address.customers.length > 0
-
-                return (
-                  <div
-                    key={address.id}
-                    className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3">
-                        <Home className="h-5 w-5 text-gray-400 mt-0.5" />
-                        <div>
-                          <p className="font-medium">{address.street}</p>
-                          <p className="text-sm text-gray-600">
-                            {address.postalCode} {address.city}
-                          </p>
-
-                          {hasCustomers && (
-                            <div className="mt-2 space-y-1">
-                              {address.customers.map((customer) => (
-                                <div
-                                  key={customer.id}
-                                  className="text-sm bg-blue-50 px-2 py-1 rounded"
-                                >
-                                  <p className="font-medium text-blue-900">
-                                    {customer.name}
-                                  </p>
-                                  {customer.phone && (
-                                    <p className="text-blue-700">
-                                      {customer.phone}
-                                    </p>
-                                  )}
-                                  {customer.subscription && (
-                                    <Badge variant="success" className="text-xs mt-1">
-                                      Prenumeration (10% rabatt)
-                                    </Badge>
-                                  )}
-                                  {customer.orders.length > 0 && (
-                                    <p className="text-xs text-blue-600 mt-1">
-                                      {customer.orders.length} tidigare order(s)
-                                    </p>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {!hasCustomers && (
-                        <Badge variant="outline" className="text-xs">
-                          Ingen kund
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </CardContent>
-          </Card>
-        ))}
-
-        {allStreets.length === 0 && (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <MapPin className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500">
-                Inga gator tilldelade till ditt team annu.
-              </p>
-              <p className="text-sm text-gray-400 mt-2">
-                Kontakta din administrator for att fa gator tilldelade.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {allStreets.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <MapPin className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-500">Inga gator tilldelade till ditt team ännu.</p>
+            <p className="text-sm text-gray-400 mt-2">
+              Kontakta din administratör för att få gator tilldelade.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <AddressList streets={streetsData} campaignId={currentCampaign?.id} />
+      )}
     </div>
   )
 }

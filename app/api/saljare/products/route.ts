@@ -12,7 +12,14 @@ export async function GET() {
 
     const products = await prisma.product.findMany({
       where: {
-        organizationId: user.organizationId!,
+        active: true,
+        archived: false,
+      },
+      include: {
+        images: {
+          orderBy: { sortOrder: 'asc' },
+          take: 1,
+        },
       },
       orderBy: {
         name: 'asc',

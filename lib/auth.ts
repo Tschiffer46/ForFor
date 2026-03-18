@@ -93,6 +93,45 @@ export async function requireTeamMember(): Promise<SessionUser | null> {
   return getCurrentUser()
 }
 
+export async function authenticateSalesRep(name: string, teamId: string, clubId: string): Promise<SessionUser> {
+  // Find existing user by name + team
+  let user = await prisma.user.findFirst({
+    where: {
+      name,
+      teamId,
+      role: 'TEAM_MEMBER',
+    },
+  })
+
+  if (!user) {
+    // Create new sales rep user (no password needed)
+    const slug = name.toLowerCase().replace(/[^a-z0-9åäö]/g, '') + '-' + teamId.slice(-4)
+    user = await prisma.user.create({
+      data: {
+        name,
+        username: slug + '-' + Date.now().toString(36),
+        password: '', // no password for sales reps
+        role: 'TEAM_MEMBER',
+        clubId,
+        teamId,
+      },
+    })
+  }
+
+  await setSession(user.id)
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    organizationId: user.organizationId,
+    clubId: user.clubId,
+    teamId: user.teamId,
+  }
+}
+
 export async function authenticateWithPassword(username: string, password: string): Promise<SessionUser> {
   const user = await prisma.user.findUnique({
     where: { username },

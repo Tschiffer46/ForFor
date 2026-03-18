@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Home, MapPin, ShoppingCart, List } from 'lucide-react'
+import { Home, ShoppingCart, Package, List } from 'lucide-react'
 
 const navItems = [
   {
@@ -12,14 +12,14 @@ const navItems = [
     icon: Home,
   },
   {
-    title: 'Adresser',
-    href: '/saljare/adresser',
-    icon: MapPin,
-  },
-  {
     title: 'Ny Order',
     href: '/saljare/ny-bestallning',
     icon: ShoppingCart,
+  },
+  {
+    title: 'Produkter',
+    href: '/saljare/produkter',
+    icon: Package,
   },
   {
     title: 'Mina Orders',
@@ -44,10 +44,16 @@ export function SeljarBottomNav() {
               href={item.href}
               className={cn(
                 'flex flex-col items-center justify-center gap-1 transition-colors',
-                isActive
-                  ? 'text-green-600 bg-green-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                !isActive && 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               )}
+              style={
+                isActive
+                  ? {
+                      color: 'var(--club-primary, #15803d)',
+                      backgroundColor: 'color-mix(in srgb, var(--club-primary, #15803d) 10%, white)',
+                    }
+                  : undefined
+              }
             >
               <Icon className="h-7 w-7" />
               <span className="text-xs font-medium">{item.title}</span>
