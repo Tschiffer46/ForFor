@@ -57,7 +57,7 @@ export default async function ClubLoginPage({ params }: Props) {
           {club.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={club.logoUrl}
+              src={`/api/uploads/${club.logoUrl}`}
               alt={club.name}
               className="h-20 w-20 mx-auto rounded-full object-cover"
             />

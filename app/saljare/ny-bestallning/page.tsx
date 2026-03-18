@@ -94,6 +94,9 @@ export default function NyBestallningPage() {
   const [paymentAction, setPaymentAction] = useState<'paid' | 'later' | null>(null)
   const [receiptMethod, setReceiptMethod] = useState<'email' | 'sms' | null>(null)
   const [receiptSent, setReceiptSent] = useState(false)
+  const [showContactForm, setShowContactForm] = useState(false)
+  const [editEmail, setEditEmail] = useState('')
+  const [editPhone, setEditPhone] = useState('')
 
   // ─── Step 1: Search addresses ──────────────────────────
 
@@ -737,7 +740,7 @@ export default function NyBestallningPage() {
           </Card>
 
           {/* Payment not yet decided */}
-          {!paymentAction && (
+          {!paymentAction && !showContactForm && (
             <>
               {/* Swish QR */}
               {createdOrder.swishQrCode && (
@@ -759,25 +762,102 @@ export default function NyBestallningPage() {
               )}
 
               <Button
-                className="w-full h-14 text-lg"
+                className="w-full h-16 text-xl font-bold"
                 onClick={markAsPaid}
                 style={{ backgroundColor: 'var(--club-primary, #15803d)' }}
               >
-                <Check className="mr-2 h-5 w-5" />
+                <Check className="mr-2 h-6 w-6" />
                 Kunden har betalat
               </Button>
 
-              <Button
-                variant="outline"
-                className="w-full h-12 text-base"
-                onClick={() => setPaymentAction('later')}
+              <button
+                className="w-full text-sm text-gray-400 underline py-2"
+                onClick={() => {
+                  // Check if customer has contact info for invoice
+                  if (!selectedCustomer?.email && !selectedCustomer?.phone) {
+                    setEditEmail('')
+                    setEditPhone('')
+                    setShowContactForm(true)
+                  } else {
+                    setPaymentAction('later')
+                  }
+                }}
               >
-                Betala senare
-              </Button>
-              <p className="text-xs text-gray-500 text-center">
-                Kunden får en faktura och betalar innan leverans
-              </p>
+                Betala senare (faktura)
+              </button>
             </>
+          )}
+
+          {/* Contact info needed for pay-later */}
+          {showContactForm && (
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <p className="font-bold text-base">Kontaktuppgifter krävs för faktura</p>
+                <p className="text-sm text-gray-600">
+                  Fyll i e-post eller telefon så att fakturan kan skickas.
+                </p>
+                <div>
+                  <label className="text-xs font-medium text-gray-600">E-post</label>
+                  <Input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    placeholder="kund@exempel.se"
+                    className="h-10"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600">Telefon</label>
+                  <Input
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    placeholder="070-1234567"
+                    className="h-10"
+                    type="tel"
+                  />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    variant="outline"
+                    className="flex-1 h-10"
+                    onClick={() => setShowContactForm(false)}
+                  >
+                    Tillbaka
+                  </Button>
+                  <Button
+                    className="flex-1 h-10"
+                    disabled={!editEmail.trim() && !editPhone.trim()}
+                    onClick={async () => {
+                      // Save contact info to backend and update local state
+                      if (selectedCustomer) {
+                        const updates: Record<string, string> = { id: selectedCustomer.id }
+                        if (editEmail.trim()) updates.email = editEmail.trim()
+                        if (editPhone.trim()) updates.phone = editPhone.trim()
+                        try {
+                          await fetch('/api/saljare/customers', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(updates),
+                          })
+                        } catch (e) {
+                          console.error('Failed to save contact info:', e)
+                        }
+                        setSelectedCustomer({
+                          ...selectedCustomer,
+                          email: editEmail.trim() || selectedCustomer.email,
+                          phone: editPhone.trim() || selectedCustomer.phone,
+                        })
+                      }
+                      setShowContactForm(false)
+                      setPaymentAction('later')
+                    }}
+                    style={{ backgroundColor: 'var(--club-primary, #15803d)' }}
+                  >
+                    Fortsätt
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Payment confirmed — choose receipt method */}

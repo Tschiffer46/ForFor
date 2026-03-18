@@ -67,3 +67,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const user = await getCurrentUser()
+
+    if (!user || user.role !== 'TEAM_MEMBER') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { id, phone, email } = body
+
+    if (!id) {
+      return NextResponse.json({ error: 'Customer ID required' }, { status: 400 })
+    }
+
+    const customer = await prisma.customer.update({
+      where: { id },
+      data: {
+        ...(phone !== undefined && { phone }),
+        ...(email !== undefined && { email }),
+      },
+    })
+
+    return NextResponse.json(customer)
+  } catch (error) {
+    console.error('Error updating customer:', error)
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
+}

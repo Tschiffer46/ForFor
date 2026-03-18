@@ -51,7 +51,7 @@ export default async function SeljarLayout({
             {club?.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={club.logoUrl}
+                src={`/api/uploads/${club.logoUrl}`}
                 alt={club.name}
                 className="h-10 w-10 rounded-full object-cover"
               />
