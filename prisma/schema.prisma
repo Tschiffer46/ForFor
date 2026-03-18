@@ -36,6 +36,8 @@ enum VisitResult {
 }
 
 enum DeliveryStatus {
+  EJ_HAMTAD
+  HAMTAD
   EJ_LEVERERAD
   LEVERERAD
   MISSLYCKAD
@@ -158,9 +160,10 @@ model Team {
   lagGroupId String
   lagGroup   LagGroup @relation(fields: [lagGroupId], references: [id], onDelete: Cascade)
 
-  districts District[]
-  users     User[]
-  orders    Order[]
+  districts     District[]
+  users         User[]
+  orders        Order[]
+  campaignTeams CampaignTeam[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -226,11 +229,12 @@ model Address {
 // ─── Customer ───────────────────────────────────────────
 
 model Customer {
-  id           String  @id @default(cuid())
-  name         String
-  phone        String?
-  email        String?
-  subscription Boolean @default(false) // 10% discount
+  id             String  @id @default(cuid())
+  customerNumber Int     @default(autoincrement()) @unique
+  name           String
+  phone          String?
+  email          String?
+  subscription   Boolean @default(false) // 10% discount
 
   addressId String
   address   Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
@@ -251,15 +255,21 @@ model Campaign {
   status         CampaignStatus @default(DRAFT)
   salesStart     DateTime
   salesEnd       DateTime
-  deliveryStart  DateTime?
-  deliveryEnd    DateTime?
-  recurring      Boolean        @default(true)
+  deliveryStart    DateTime?
+  deliveryEnd      DateTime?
+  preparationStart DateTime?
+  preparationEnd   DateTime?
+  transportStart   DateTime?
+  transportEnd     DateTime?
+  recurring        Boolean        @default(true)
 
   clubId String
   club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
-  products CampaignProduct[]
-  orders   Order[]
+  products      CampaignProduct[]
+  orders        Order[]
+  campaignTeams CampaignTeam[]
+  addressVisits AddressVisit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -289,6 +299,8 @@ model Order {
   status      OrderStatus @default(OBETALD)
   totalAmount Int         // Total in SEK
   swishQrCode String?
+  comment     String?     // Salesperson comment
+  source      String      @default("SALES_REP") // "SALES_REP" or "WEB"
 
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
@@ -345,6 +357,7 @@ model AddressVisit {
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -480,6 +493,21 @@ model PriceCampaign {
   updatedAt DateTime @updatedAt
 
   @@map("price_campaigns")
+}
+
+// ─── CampaignTeam (which teams participate in which campaign) ─
+
+model CampaignTeam {
+  id String @id @default(cuid())
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  teamId String
+  team   Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, teamId])
+  @@map("campaign_teams")
 }
 
 // ─── User ───────────────────────────────────────────────

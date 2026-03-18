@@ -1,12 +1,48 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
-import { Upload, Edit, Trash2 } from 'lucide-react'
+import { Upload } from 'lucide-react'
 import { KundImport } from '@/components/admin/kund-import'
-import { KundForm } from '@/components/admin/kund-form'
-import { DeleteButton } from '@/components/admin/delete-button'
+import CustomersTable, {
+  type SerializedCustomer,
+} from '@/components/admin/customers-table'
+
+function computeSaleType(orders: { source: string }[]): string {
+  if (orders.length === 0) return 'Ingen försäljning ännu'
+  if (orders.some((o) => o.source === 'SALES_REP')) return 'Säljare'
+  if (orders.some((o) => o.source === 'WEB')) return 'Webbsida'
+  return 'Ingen försäljning ännu'
+}
+
+function computeVisitStatus(
+  visits: { result: string; createdAt: Date }[],
+  hasOrders: boolean
+): string {
+  if (visits.length === 0) {
+    return hasOrders ? 'Beställde via webb' : 'Ej besökt'
+  }
+
+  // Sort by date descending, check the latest visit
+  const sorted = [...visits].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+  )
+  const latest = sorted[0].result
+
+  switch (latest) {
+    case 'KOPT':
+      return 'Besökt och köpte'
+    case 'NEJ_TACK':
+    case 'NEJ_TACK_FRAMTIDEN':
+      return 'Besökt, köpte inte'
+    case 'INGEN_HEMMA':
+      return 'Besökt, ingen hemma'
+    case 'EJ_BESIKT':
+      return 'Ej besökt'
+    default:
+      return 'Ej besökt'
+  }
+}
 
 export default async function KunderPage() {
   const user = await getCurrentUser()
@@ -45,14 +81,50 @@ export default async function KunderPage() {
               },
             },
           },
+          visits: {
+            orderBy: { createdAt: 'desc' },
+          },
         },
       },
-      orders: true,
+      orders: {
+        include: {
+          campaign: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      },
     },
     orderBy: {
       name: 'asc',
     },
   })
+
+  // Serialize to plain objects — no Date fields or Prisma objects reach the client
+  const serialized: SerializedCustomer[] = customers.map((c) => {
+    const latestOrder = c.orders[0] ?? null
+
+    return {
+      id: c.id,
+      customerNumber: c.customerNumber,
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      subscription: c.subscription,
+      address: {
+        street: c.address.street,
+        postalCode: c.address.postalCode,
+        city: c.address.city,
+      },
+      teamName: c.address.streetRef.district.team.name,
+      orderCount: c.orders.length,
+      lastCampaignName: latestOrder?.campaign.name ?? null,
+      saleType: computeSaleType(c.orders),
+      visitStatus: computeVisitStatus(c.address.visits, c.orders.length > 0),
+    }
+  })
+
+  const totalCustomers = serialized.length
+  const withSubscription = serialized.filter((c) => c.subscription).length
+  const withOrders = serialized.filter((c) => c.orderCount > 0).length
 
   return (
     <div className="space-y-6">
@@ -60,7 +132,7 @@ export default async function KunderPage() {
         <div>
           <h1 className="text-3xl font-bold">Kunder</h1>
           <p className="text-gray-600 mt-1">
-            Hantera kunder och importera fran Excel
+            Hantera kunder och importera från Excel
           </p>
         </div>
         <KundImport
@@ -79,7 +151,7 @@ export default async function KunderPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-sm text-gray-600">Totalt kunder</p>
-              <p className="text-3xl font-bold mt-1">{customers.length}</p>
+              <p className="text-3xl font-bold mt-1">{totalCustomers}</p>
             </div>
           </CardContent>
         </Card>
@@ -88,7 +160,7 @@ export default async function KunderPage() {
             <div className="text-center">
               <p className="text-sm text-gray-600">Med prenumeration</p>
               <p className="text-3xl font-bold text-green-600 mt-1">
-                {customers.filter((c) => c.subscription).length}
+                {withSubscription}
               </p>
             </div>
           </CardContent>
@@ -96,122 +168,17 @@ export default async function KunderPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-sm text-gray-600">Gjort bestallningar</p>
+              <p className="text-sm text-gray-600">Gjort beställningar</p>
               <p className="text-3xl font-bold text-blue-600 mt-1">
-                {customers.filter((c) => c.orders.length > 0).length}
+                {withOrders}
               </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Customers table */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Namn
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Kontakt
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Adress
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Team
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Bestallningar
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Prenumeration
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Atgarder
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {customers.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{customer.name}</td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm">
-                        {customer.phone && <p>{customer.phone}</p>}
-                        {customer.email && (
-                          <p className="text-gray-500">{customer.email}</p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div>
-                        <p>{customer.address.street}</p>
-                        <p className="text-gray-500">
-                          {customer.address.postalCode} {customer.address.city}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {customer.address.streetRef.district.team.name}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center">
-                      {customer.orders.length}
-                    </td>
-                    <td className="px-4 py-3">
-                      {customer.subscription ? (
-                        <Badge variant="success">Ja (10% rabatt)</Badge>
-                      ) : (
-                        <Badge variant="outline">Nej</Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <KundForm
-                          customer={customer}
-                          trigger={
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          }
-                        />
-                        <DeleteButton
-                          itemName={customer.name}
-                          itemType="kund"
-                          onDelete={async () => {
-                            const response = await fetch(`/api/admin/kunder/${customer.id}`, {
-                              method: 'DELETE',
-                            })
-                            if (!response.ok) {
-                              throw new Error('Failed to delete customer')
-                            }
-                          }}
-                          trigger={
-                            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          }
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-
-                {customers.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
-                      Inga kunder annu. Importera fran Excel for att komma igang.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Customers table with filters */}
+      <CustomersTable customers={serialized} />
     </div>
   )
 }

@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       return undefined
     })
 
-    // Create order
+    // Create order with delivery record
     const order = await prisma.order.create({
       data: {
         customerId,
@@ -101,6 +101,11 @@ export async function POST(request: NextRequest) {
         status: 'OBETALD',
         items: {
           create: orderItemsData,
+        },
+        deliveries: {
+          create: {
+            status: 'EJ_HAMTAD',
+          },
         },
       },
       include: {

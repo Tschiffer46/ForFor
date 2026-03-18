@@ -17,7 +17,8 @@ interface DeleteButtonProps {
   trigger: React.ReactNode
   itemName: string
   itemType: string
-  onDelete: () => Promise<void>
+  onDelete?: () => Promise<void>
+  deleteUrl?: string
 }
 
 export function DeleteButton({
@@ -25,6 +26,7 @@ export function DeleteButton({
   itemName,
   itemType,
   onDelete,
+  deleteUrl,
 }: DeleteButtonProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -34,7 +36,12 @@ export function DeleteButton({
     setLoading(true)
 
     try {
-      await onDelete()
+      if (deleteUrl) {
+        const response = await fetch(deleteUrl, { method: 'DELETE' })
+        if (!response.ok) throw new Error('Delete failed')
+      } else if (onDelete) {
+        await onDelete()
+      }
       setOpen(false)
       router.refresh()
     } catch (error) {

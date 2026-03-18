@@ -5,9 +5,18 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Home, Users, Package, ShoppingCart, Truck, Calendar, Building2, LogOut, UserCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
+interface ClubColors {
+  color1: string | null
+  color2: string | null
+  color3: string | null
+  color4: string | null
+}
+
 interface SidebarProps {
   clubName: string
   userRole: string
+  logoUrl?: string | null
+  clubColors?: ClubColors | null
 }
 
 const orgAdminNav = [
@@ -27,10 +36,13 @@ const clubAdminNav = [
   { href: '/admin/leveranslistor', label: 'Leveranslistor', icon: Truck },
 ]
 
-export function AdminSidebar({ clubName, userRole }: SidebarProps) {
+export function AdminSidebar({ clubName, userRole, logoUrl, clubColors }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const navItems = userRole === 'ORG_ADMIN' ? orgAdminNav : clubAdminNav
+
+  const primaryColor = clubColors?.color1 || '#15803d' // green-700 default
+  const primaryBg = clubColors?.color1 ? `${clubColors.color1}15` : undefined // 15 = ~8% opacity
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -40,8 +52,19 @@ export function AdminSidebar({ clubName, userRole }: SidebarProps) {
   return (
     <div className="h-full flex flex-col bg-white border-r">
       <div className="p-6 border-b">
-        <h1 className="text-xl font-bold text-green-700">ForFor</h1>
-        <p className="text-sm text-gray-500 mt-1">{clubName}</p>
+        {logoUrl ? (
+          <div className="flex items-center gap-3">
+            <img src={logoUrl.startsWith('/') ? `/api/uploads${logoUrl}` : logoUrl} alt={clubName} className="h-10 w-10 object-contain rounded" />
+            <div>
+              <h1 className="text-lg font-bold" style={{ color: primaryColor }}>{clubName}</h1>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h1 className="text-xl font-bold" style={{ color: primaryColor }}>ForFor</h1>
+            <p className="text-sm text-gray-500 mt-1">{clubName}</p>
+          </>
+        )}
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
@@ -53,9 +76,10 @@ export function AdminSidebar({ clubName, userRole }: SidebarProps) {
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive
-                  ? 'bg-green-50 text-green-700'
+                  ? ''
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
+              style={isActive ? { backgroundColor: primaryBg || '#f0fdf4', color: primaryColor } : undefined}
             >
               <item.icon className="h-5 w-5" />
               {item.label}

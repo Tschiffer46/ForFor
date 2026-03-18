@@ -1,8 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
+import OrdersTable, { type SerializedOrder } from '@/components/admin/orders-table'
 
 export default async function BestallningarPage() {
   const user = await getCurrentUser()
@@ -24,7 +24,9 @@ export default async function BestallningarPage() {
   const orders = await prisma.order.findMany({
     where: whereClause,
     include: {
-      customer: true,
+      customer: {
+        include: { address: true },
+      },
       seller: true,
       team: { include: { lagGroup: { include: { club: true } } } },
       campaign: true,
@@ -40,8 +42,52 @@ export default async function BestallningarPage() {
 
   const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0)
 
+  // Serialize Dates to ISO strings for the client component
+  const serializedOrders: SerializedOrder[] = orders.map((order) => ({
+    id: order.id,
+    status: order.status,
+    totalAmount: order.totalAmount,
+    comment: order.comment,
+    source: order.source,
+    createdAt: order.createdAt.toISOString(),
+    customer: {
+      id: order.customer.id,
+      customerNumber: order.customer.customerNumber,
+      name: order.customer.name,
+      phone: order.customer.phone,
+      email: order.customer.email,
+      address: {
+        street: order.customer.address.street,
+        city: order.customer.address.city,
+      },
+    },
+    seller: order.seller ? { id: order.seller.id, name: order.seller.name } : null,
+    team: {
+      id: order.team.id,
+      name: order.team.name,
+      lagGroup: {
+        id: order.team.lagGroup.id,
+        name: order.team.lagGroup.name,
+        club: {
+          id: order.team.lagGroup.club.id,
+          name: order.team.lagGroup.club.name,
+        },
+      },
+    },
+    campaign: {
+      id: order.campaign.id,
+      name: order.campaign.name,
+    },
+    items: order.items.map((item) => ({
+      id: item.id,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      product: { id: item.product.id, name: item.product.name },
+    })),
+  }))
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <h1 className="text-3xl font-bold">Beställningar</h1>
         <p className="text-gray-600 mt-1">
@@ -84,58 +130,7 @@ export default async function BestallningarPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kund</th>
-                  {isOrgAdmin && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Klubb</th>}
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Säljare</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Team</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produkter</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Belopp</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm">{formatDate(order.createdAt)}</td>
-                    <td className="px-4 py-3">
-                      <div>
-                        <p className="font-medium">{order.customer.name}</p>
-                        {order.customer.phone && <p className="text-xs text-gray-500">{order.customer.phone}</p>}
-                      </div>
-                    </td>
-                    {isOrgAdmin && <td className="px-4 py-3 text-sm">{order.team.lagGroup.club.name}</td>}
-                    <td className="px-4 py-3 text-sm">{order.seller?.name || '-'}</td>
-                    <td className="px-4 py-3 text-sm">{order.team?.name || '-'}</td>
-                    <td className="px-4 py-3 text-sm">
-                      {order.items.map((item) => (
-                        <div key={item.id} className="text-xs">{item.quantity}x {item.product.name}</div>
-                      ))}
-                    </td>
-                    <td className="px-4 py-3 font-bold">{formatCurrency(order.totalAmount)}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={order.status === 'BETALD' ? 'success' : 'warning'}>{order.status}</Badge>
-                    </td>
-                  </tr>
-                ))}
-                {orders.length === 0 && (
-                  <tr>
-                    <td colSpan={isOrgAdmin ? 8 : 7} className="px-4 py-12 text-center text-gray-500">
-                      Inga beställningar ännu
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      <OrdersTable orders={serializedOrders} showClubColumn={isOrgAdmin} />
     </div>
   )
 }
