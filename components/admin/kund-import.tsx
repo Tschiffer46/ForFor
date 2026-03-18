@@ -27,8 +27,8 @@ interface ParsedCustomer {
   gatuadress: string
   postnummer: string
   stad: string
+  lag?: string
   lagNamn?: string
-  prenumeration?: boolean
 }
 
 export function KundImport({ trigger }: KundImportProps) {
@@ -61,8 +61,8 @@ export function KundImport({ trigger }: KundImportProps) {
               gatuadress: row.gatuadress || row.Gatuadress || row.adress || row.Adress || '',
               postnummer: row.postnummer || row.Postnummer || '',
               stad: row.stad || row.Stad || '',
-              lagNamn: row.lagNamn || row.LagNamn || row.lag || row.Lag || '',
-              prenumeration: row.prenumeration === 'true' || row.Prenumeration === 'true',
+              lag: row.lag || row.Lag || '',
+              lagNamn: row.lagNamn || row.LagNamn || row.team || row.Team || '',
             }))
             setPreview(customers.slice(0, 5))
             setLoading(false)
@@ -90,11 +90,11 @@ export function KundImport({ trigger }: KundImportProps) {
             gatuadress: obj.gatuadress || obj.adress || '',
             postnummer: obj.postnummer || '',
             stad: obj.stad || '',
-            lagNamn: obj.lagnamn || obj.lag || '',
-            prenumeration: obj.prenumeration === 'true' || obj.prenumeration === true,
+            lag: obj.lag || '',
+            lagNamn: obj.lagnamn || obj.team || '',
           }
         })
-        
+
         setPreview(customers.slice(0, 5))
         setLoading(false)
       } else {
@@ -128,8 +128,8 @@ export function KundImport({ trigger }: KundImportProps) {
               gatuadress: row.gatuadress || row.Gatuadress || row.adress || row.Adress || '',
               postnummer: row.postnummer || row.Postnummer || '',
               stad: row.stad || row.Stad || '',
-              lagNamn: row.lagNamn || row.LagNamn || row.lag || row.Lag || '',
-              prenumeration: row.prenumeration === 'true' || row.Prenumeration === 'true',
+              lag: row.lag || row.Lag || '',
+              lagNamn: row.lagNamn || row.LagNamn || row.team || row.Team || '',
             }))
 
             await performImport(customers)
@@ -152,8 +152,8 @@ export function KundImport({ trigger }: KundImportProps) {
             gatuadress: obj.gatuadress || obj.adress || '',
             postnummer: obj.postnummer || '',
             stad: obj.stad || '',
-            lagNamn: obj.lagnamn || obj.lag || '',
-            prenumeration: obj.prenumeration === 'true' || obj.prenumeration === true,
+            lag: obj.lag || '',
+            lagNamn: obj.lagnamn || obj.team || '',
           }
         })
 
@@ -202,7 +202,7 @@ export function KundImport({ trigger }: KundImportProps) {
         <DialogHeader>
           <DialogTitle>Importera kunder</DialogTitle>
           <DialogDescription>
-            Ladda upp en CSV eller Excel-fil med kunder. Filen ska innehålla kolumnerna: namn, gatuadress, postnummer, stad. Valfria: telefon, epost, lagNamn, prenumeration.
+            Ladda upp en CSV eller Excel-fil med kunder. Filen ska innehålla kolumnerna: namn, gatuadress, postnummer, stad. Valfria: telefon, epost, lag, lagNamn.
           </DialogDescription>
         </DialogHeader>
 
@@ -230,6 +230,7 @@ export function KundImport({ trigger }: KundImportProps) {
                         <th className="px-2 py-1 text-left">Adress</th>
                         <th className="px-2 py-1 text-left">Stad</th>
                         <th className="px-2 py-1 text-left">Lag</th>
+                        <th className="px-2 py-1 text-left">Team</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -238,6 +239,7 @@ export function KundImport({ trigger }: KundImportProps) {
                           <td className="px-2 py-1">{customer.namn}</td>
                           <td className="px-2 py-1">{customer.gatuadress}</td>
                           <td className="px-2 py-1">{customer.stad}</td>
+                          <td className="px-2 py-1">{customer.lag || '-'}</td>
                           <td className="px-2 py-1">{customer.lagNamn || '-'}</td>
                         </tr>
                       ))}

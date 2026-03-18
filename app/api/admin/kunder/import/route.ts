@@ -10,8 +10,8 @@ interface ImportCustomer {
   gatuadress: string
   postnummer: string
   stad: string
+  lag?: string
   lagNamn?: string
-  prenumeration?: boolean
 }
 
 export async function POST(request: NextRequest) {
@@ -46,9 +46,11 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Find or create a lag group and team
+        // Find or create lag group (age group, e.g. "Flickor 08")
+        const lagGroupName = customerData.lag || 'Standard'
         let lagGroup = await prisma.lagGroup.findFirst({
           where: {
+            name: lagGroupName,
             clubId: user.clubId,
           },
         })
@@ -56,42 +58,28 @@ export async function POST(request: NextRequest) {
         if (!lagGroup) {
           lagGroup = await prisma.lagGroup.create({
             data: {
-              name: 'Standard',
+              name: lagGroupName,
               clubId: user.clubId,
             },
           })
         }
 
-        let team
-        if (customerData.lagNamn) {
-          team = await prisma.team.findFirst({
-            where: {
-              name: customerData.lagNamn,
-              lagGroup: { clubId: user.clubId },
+        // Find or create team (operational unit, e.g. "Team A")
+        const teamName = customerData.lagNamn || 'Standard'
+        let team = await prisma.team.findFirst({
+          where: {
+            name: teamName,
+            lagGroupId: lagGroup.id,
+          },
+        })
+
+        if (!team) {
+          team = await prisma.team.create({
+            data: {
+              name: teamName,
+              lagGroupId: lagGroup.id,
             },
           })
-
-          if (!team) {
-            team = await prisma.team.create({
-              data: {
-                name: customerData.lagNamn,
-                lagGroupId: lagGroup.id,
-              },
-            })
-          }
-        } else {
-          team = await prisma.team.findFirst({
-            where: { lagGroup: { clubId: user.clubId } },
-          })
-
-          if (!team) {
-            team = await prisma.team.create({
-              data: {
-                name: 'Standard',
-                lagGroupId: lagGroup.id,
-              },
-            })
-          }
         }
 
         // Find or create district
@@ -169,7 +157,7 @@ export async function POST(request: NextRequest) {
             name: customerData.namn,
             phone: customerData.telefon || null,
             email: customerData.epost || null,
-            subscription: customerData.prenumeration || false,
+            subscription: false,
             addressId: address.id,
           },
         })
