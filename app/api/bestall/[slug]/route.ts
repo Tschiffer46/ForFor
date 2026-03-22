@@ -255,6 +255,11 @@ export async function POST(
       },
       include: {
         customer: { select: { name: true } },
+        items: {
+          include: {
+            product: { select: { name: true } },
+          },
+        },
       },
     })
 
@@ -267,6 +272,11 @@ export async function POST(
       totalAmount: order.totalAmount,
       swishQrCode: order.swishQrCode,
       customerName: order.customer.name,
+      items: order.items.map((item) => ({
+        name: item.product.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })),
     })
   } catch (error) {
     console.error('Error creating web order:', error)

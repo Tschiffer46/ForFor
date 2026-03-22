@@ -63,7 +63,10 @@ export default async function BestallPage({
   return (
     <OrderPage
       slug={slug}
+      clubName={club.name}
       campaignName={campaign.name}
+      deliveryStart={campaign.deliveryStart?.toISOString() ?? null}
+      deliveryEnd={campaign.deliveryEnd?.toISOString() ?? null}
       products={products}
     />
   )

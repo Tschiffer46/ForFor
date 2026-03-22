@@ -28,26 +28,23 @@ export async function GET(
       )
     }
 
-    // Find customer by customer number and verify they belong to this club
-    const customer = await prisma.customer.findUnique({
-      where: { customerNumber },
-      include: {
+    // Find customer by customer number, verify they belong to this club
+    const customer = await prisma.customer.findFirst({
+      where: {
+        customerNumber: { equals: customerNumber, mode: 'insensitive' },
         address: {
-          include: {
-            streetRef: {
-              include: {
-                district: {
-                  include: {
-                    team: {
-                      include: {
-                        lagGroup: true,
-                      },
-                    },
-                  },
-                },
+          streetRef: {
+            district: {
+              team: {
+                lagGroup: { clubId: club.id },
               },
             },
           },
+        },
+      },
+      include: {
+        address: {
+          select: { street: true, postalCode: true, city: true },
         },
       },
     })
@@ -59,23 +56,12 @@ export async function GET(
       )
     }
 
-    // Verify customer belongs to this club
-    if (customer.address.streetRef.district.team.lagGroup.clubId !== club.id) {
-      return NextResponse.json(
-        { error: 'Kund hittades inte' },
-        { status: 404 }
-      )
-    }
-
-    // Return only safe fields
     return NextResponse.json({
       id: customer.id,
       name: customer.name,
-      address: {
-        street: customer.address.street,
-        postalCode: customer.address.postalCode,
-        city: customer.address.city,
-      },
+      customerNumber: customer.customerNumber,
+      subscription: customer.subscription,
+      address: customer.address,
     })
   } catch (error) {
     console.error('Error looking up customer:', error)

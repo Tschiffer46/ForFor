@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
-import { CheckCircle } from 'lucide-react'
+import { CheckCircle, ShoppingBag, ArrowLeft } from 'lucide-react'
 
 interface Product {
   id: string
@@ -18,14 +18,41 @@ interface Product {
 
 interface OrderPageProps {
   slug: string
+  clubName: string
   campaignName: string
+  deliveryStart: string | null
+  deliveryEnd: string | null
   products: Product[]
 }
 
-type Step = 'identify' | 'products' | 'confirmation'
+interface OrderItem {
+  name: string
+  quantity: number
+  unitPrice: number
+}
 
-export function OrderPage({ slug, campaignName, products }: OrderPageProps) {
-  const [step, setStep] = useState<Step>('identify')
+type Step = 'products' | 'identify' | 'summary'
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('sv-SE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+}
+
+export function OrderPage({
+  slug,
+  clubName,
+  campaignName,
+  deliveryStart,
+  deliveryEnd,
+  products,
+}: OrderPageProps) {
+  const [step, setStep] = useState<Step>('products')
+
+  // Products step
+  const [quantities, setQuantities] = useState<Record<string, number>>({})
 
   // Identify step
   const [mode, setMode] = useState<'existing' | 'new' | null>(null)
@@ -33,6 +60,8 @@ export function OrderPage({ slug, campaignName, products }: OrderPageProps) {
   const [lookupResult, setLookupResult] = useState<{
     id: string
     name: string
+    customerNumber: string
+    subscription: boolean
     address: { street: string; postalCode: string; city: string }
   } | null>(null)
   const [lookupError, setLookupError] = useState('')
@@ -46,14 +75,12 @@ export function OrderPage({ slug, campaignName, products }: OrderPageProps) {
   const [newPhone, setNewPhone] = useState('')
   const [newEmail, setNewEmail] = useState('')
 
-  // Products step
-  const [quantities, setQuantities] = useState<Record<string, number>>({})
-
-  // Confirmation step
+  // Submit state
   const [orderResult, setOrderResult] = useState<{
     totalAmount: number
     swishQrCode?: string
     customerName: string
+    items: OrderItem[]
   } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -97,7 +124,7 @@ export function OrderPage({ slug, campaignName, products }: OrderPageProps) {
     const body: Record<string, unknown> = { items }
 
     if (mode === 'existing' && lookupResult) {
-      body.customerNumber = customerNumber.trim()
+      body.customerNumber = lookupResult.customerNumber
     } else if (mode === 'new') {
       body.newCustomer = {
         name: newName.trim(),
@@ -119,7 +146,7 @@ export function OrderPage({ slug, campaignName, products }: OrderPageProps) {
       if (res.ok) {
         const data = await res.json()
         setOrderResult(data)
-        setStep('confirmation')
+        setStep('summary')
       } else {
         const err = await res.json().catch(() => ({}))
         setSubmitError(err.error || 'Något gick fel. Försök igen.')
@@ -131,138 +158,21 @@ export function OrderPage({ slug, campaignName, products }: OrderPageProps) {
     }
   }
 
-  // Can proceed from identify step?
   const canProceedFromIdentify =
     (mode === 'existing' && lookupResult) ||
     (mode === 'new' && newName.trim() && newStreet.trim() && newCity.trim())
 
-  if (step === 'identify') {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold">Beställ från {campaignName}</h2>
-          <p className="text-gray-600 mt-1">Välj hur du vill identifiera dig</p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            className={`p-4 rounded-lg border-2 text-left transition-colors ${
-              mode === 'existing'
-                ? 'border-green-600 bg-green-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-            onClick={() => setMode('existing')}
-          >
-            <p className="font-semibold">Jag har ett kundnummer</p>
-            <p className="text-sm text-gray-600">T.ex. UIF-10001</p>
-          </button>
-          <button
-            className={`p-4 rounded-lg border-2 text-left transition-colors ${
-              mode === 'new'
-                ? 'border-green-600 bg-green-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-            onClick={() => setMode('new')}
-          >
-            <p className="font-semibold">Jag är ny kund</p>
-            <p className="text-sm text-gray-600">Fyll i dina uppgifter</p>
-          </button>
-        </div>
-
-        {mode === 'existing' && (
-          <Card>
-            <CardContent className="pt-4 space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Kundnummer, t.ex. UIF-10001"
-                  value={customerNumber}
-                  onChange={(e) => setCustomerNumber(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
-                />
-                <Button onClick={handleLookup} disabled={lookupLoading}>
-                  {lookupLoading ? 'Söker...' : 'Sök'}
-                </Button>
-              </div>
-              {lookupError && <p className="text-sm text-red-600">{lookupError}</p>}
-              {lookupResult && (
-                <div className="p-3 rounded bg-green-50 text-sm">
-                  <p className="font-medium">{lookupResult.name}</p>
-                  <p className="text-gray-600">
-                    {lookupResult.address.street}, {lookupResult.address.postalCode}{' '}
-                    {lookupResult.address.city}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {mode === 'new' && (
-          <Card>
-            <CardContent className="pt-4 space-y-3">
-              <div className="space-y-1">
-                <Label>Namn *</Label>
-                <Input value={newName} onChange={(e) => setNewName(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label>Gatuadress *</Label>
-                <Input value={newStreet} onChange={(e) => setNewStreet(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Postnummer</Label>
-                  <Input
-                    value={newPostalCode}
-                    onChange={(e) => setNewPostalCode(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Stad *</Label>
-                  <Input value={newCity} onChange={(e) => setNewCity(e.target.value)} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Telefon</Label>
-                  <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label>E-post</Label>
-                  <Input
-                    type="email"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {mode && (
-          <Button
-            className="w-full"
-            size="lg"
-            disabled={!canProceedFromIdentify}
-            onClick={() => setStep('products')}
-          >
-            Välj produkter
-          </Button>
-        )}
-      </div>
-    )
-  }
-
+  // ── Step 1: Products ──
   if (step === 'products') {
-    const customerName =
-      mode === 'existing' ? lookupResult?.name : newName.trim()
-
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold">Välj produkter</h2>
-          <p className="text-gray-600 mt-1">
-            Beställning för <span className="font-medium">{customerName}</span>
+          <h2 className="text-2xl font-bold">
+            Välkommen till {clubName}s försäljning!
+          </h2>
+          <p className="text-gray-600 mt-2">
+            Tack för att du stödjer vår förening! Välj de produkter du vill
+            beställa nedan.
           </p>
         </div>
 
@@ -324,75 +234,281 @@ export function OrderPage({ slug, campaignName, products }: OrderPageProps) {
           ))}
         </div>
 
-        {submitError && (
-          <p className="text-sm text-red-600 text-center">{submitError}</p>
-        )}
-
         {/* Sticky bottom bar */}
-        <div className="sticky bottom-0 bg-white border-t p-4 -mx-4 shadow-lg">
-          <div className="max-w-2xl mx-auto flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Totalt</p>
-              <p className="text-xl font-bold">{formatCurrency(totalAmount)}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep('identify')}>
-                Tillbaka
-              </Button>
-              <Button
-                size="lg"
-                disabled={!hasItems || submitting}
-                onClick={handleSubmitOrder}
-              >
-                {submitting ? 'Beställer...' : 'Beställ'}
+        {hasItems && (
+          <div className="sticky bottom-0 bg-white border-t p-4 -mx-4 shadow-lg">
+            <div className="max-w-2xl mx-auto flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Totalt</p>
+                <p className="text-xl font-bold">{formatCurrency(totalAmount)}</p>
+              </div>
+              <Button size="lg" onClick={() => setStep('identify')}>
+                <ShoppingBag className="h-4 w-4 mr-2" />
+                Gå vidare
               </Button>
             </div>
           </div>
-        </div>
+        )}
       </div>
     )
   }
 
-  // Confirmation step
-  if (step === 'confirmation' && orderResult) {
+  // ── Step 2: Identify ──
+  if (step === 'identify') {
     return (
-      <div className="space-y-6 text-center">
-        <CheckCircle className="h-16 w-16 text-green-600 mx-auto" />
+      <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold">Tack för din beställning!</h2>
+          <button
+            className="flex items-center text-sm text-gray-500 hover:text-gray-700 mb-2"
+            onClick={() => setStep('products')}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Tillbaka till produkter
+          </button>
+          <h2 className="text-2xl font-bold">Dina uppgifter</h2>
           <p className="text-gray-600 mt-1">
-            {orderResult.customerName}, din beställning är registrerad.
+            Har du beställt förut? Ange ditt kundnummer. Annars, fyll i dina
+            uppgifter.
           </p>
         </div>
 
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div>
-              <p className="text-sm text-gray-600">Att betala</p>
-              <p className="text-3xl font-bold">
-                {formatCurrency(orderResult.totalAmount)}
-              </p>
-            </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            className={`p-4 rounded-lg border-2 text-left transition-colors ${
+              mode === 'existing'
+                ? 'border-green-600 bg-green-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+            onClick={() => setMode('existing')}
+          >
+            <p className="font-semibold">Jag har ett kundnummer</p>
+            <p className="text-sm text-gray-600">T.ex. UIF-10001</p>
+          </button>
+          <button
+            className={`p-4 rounded-lg border-2 text-left transition-colors ${
+              mode === 'new'
+                ? 'border-green-600 bg-green-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+            onClick={() => setMode('new')}
+          >
+            <p className="font-semibold">Jag är ny kund</p>
+            <p className="text-sm text-gray-600">Fyll i dina uppgifter</p>
+          </button>
+        </div>
 
-            {orderResult.swishQrCode && (
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">Betala med Swish</p>
-                <img
-                  src={orderResult.swishQrCode}
-                  alt="Swish QR-kod"
-                  className="w-48 h-48 mx-auto"
+        {mode === 'existing' && (
+          <Card>
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Kundnummer, t.ex. UIF-10001"
+                  value={customerNumber}
+                  onChange={(e) => setCustomerNumber(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
                 />
-                <p className="text-xs text-gray-500">
-                  Skanna QR-koden med din Swish-app
+                <Button onClick={handleLookup} disabled={lookupLoading}>
+                  {lookupLoading ? 'Söker...' : 'Sök'}
+                </Button>
+              </div>
+              {lookupError && (
+                <p className="text-sm text-red-600">{lookupError}</p>
+              )}
+              {lookupResult && (
+                <div className="p-3 rounded bg-green-50 text-sm">
+                  <p className="font-medium">{lookupResult.name}</p>
+                  <p className="text-gray-600">
+                    {lookupResult.address.street},{' '}
+                    {lookupResult.address.postalCode}{' '}
+                    {lookupResult.address.city}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {mode === 'new' && (
+          <Card>
+            <CardContent className="pt-4 space-y-3">
+              <div className="space-y-1">
+                <Label>Namn *</Label>
+                <Input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Gatuadress *</Label>
+                <Input
+                  value={newStreet}
+                  onChange={(e) => setNewStreet(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Postnummer</Label>
+                  <Input
+                    value={newPostalCode}
+                    onChange={(e) => setNewPostalCode(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Stad *</Label>
+                  <Input
+                    value={newCity}
+                    onChange={(e) => setNewCity(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Telefon</Label>
+                  <Input
+                    value={newPhone}
+                    onChange={(e) => setNewPhone(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>E-post</Label>
+                  <Input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {submitError && (
+          <p className="text-sm text-red-600 text-center">{submitError}</p>
+        )}
+
+        {mode && (
+          <div className="sticky bottom-0 bg-white border-t p-4 -mx-4 shadow-lg">
+            <div className="max-w-2xl mx-auto flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Totalt</p>
+                <p className="text-xl font-bold">
+                  {formatCurrency(totalAmount)}
                 </p>
               </div>
-            )}
+              <Button
+                size="lg"
+                disabled={!canProceedFromIdentify || submitting}
+                onClick={handleSubmitOrder}
+              >
+                {submitting ? 'Beställer...' : 'Skicka beställning'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Step 3: Summary ──
+  if (step === 'summary' && orderResult) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <CheckCircle className="h-16 w-16 text-green-600 mx-auto" />
+          <h2 className="text-2xl font-bold mt-4">
+            Tack för din beställning, {orderResult.customerName}!
+          </h2>
+          <p className="text-gray-600 mt-1">
+            Din beställning är registrerad och vi ser fram emot att leverera
+            till dig.
+          </p>
+        </div>
+
+        {/* Order items */}
+        <Card>
+          <CardContent className="pt-6">
+            <h3 className="font-semibold mb-3">Din beställning</h3>
+            <div className="divide-y">
+              {orderResult.items.map((item, i) => (
+                <div key={i} className="flex justify-between py-2">
+                  <span>
+                    {item.quantity}x {item.name}
+                  </span>
+                  <span className="font-medium">
+                    {formatCurrency(item.unitPrice * item.quantity)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between pt-3 mt-3 border-t font-bold text-lg">
+              <span>Totalt</span>
+              <span>{formatCurrency(orderResult.totalAmount)}</span>
+            </div>
           </CardContent>
         </Card>
 
-        <p className="text-sm text-gray-500">
-          Du kan stänga denna sida. Leveransinformation kommer via{' '}
-          {campaignName}.
+        {/* Payment */}
+        {orderResult.swishQrCode && (
+          <Card>
+            <CardContent className="pt-6 text-center space-y-3">
+              <h3 className="font-semibold">Betala med Swish</h3>
+              <img
+                src={orderResult.swishQrCode}
+                alt="Swish QR-kod"
+                className="w-48 h-48 mx-auto"
+              />
+              <p className="text-sm text-gray-500">
+                Skanna QR-koden med din Swish-app
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Delivery info */}
+        {(deliveryStart || deliveryEnd) && (
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="font-semibold mb-2">Leveransinformation</h3>
+              <p className="text-gray-600">
+                {deliveryStart && deliveryEnd ? (
+                  <>
+                    Leverans sker mellan{' '}
+                    <span className="font-medium">
+                      {formatDate(deliveryStart)}
+                    </span>{' '}
+                    och{' '}
+                    <span className="font-medium">
+                      {formatDate(deliveryEnd)}
+                    </span>
+                    .
+                  </>
+                ) : deliveryStart ? (
+                  <>
+                    Leverans börjar{' '}
+                    <span className="font-medium">
+                      {formatDate(deliveryStart)}
+                    </span>
+                    .
+                  </>
+                ) : (
+                  <>
+                    Leverans senast{' '}
+                    <span className="font-medium">
+                      {formatDate(deliveryEnd!)}
+                    </span>
+                    .
+                  </>
+                )}
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                Varorna levereras till din dörr av {clubName}s säljare.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        <p className="text-center text-sm text-gray-500">
+          Tack för att du stödjer {clubName}!
         </p>
       </div>
     )
