@@ -8,6 +8,7 @@ import { MapPin, Globe, Mail, Phone, User } from 'lucide-react'
 import { ClubLogo } from '@/components/admin/club-logo'
 import { ClubColors } from '@/components/admin/club-colors'
 import { ClubKeyPersons } from '@/components/admin/club-key-persons'
+import { ClubPrefix } from '@/components/admin/club-prefix'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -99,6 +100,9 @@ export default async function ClubDetailPage({ params }: Props) {
             {club.contactPhone && <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-gray-400" />{club.contactPhone}</p>}
             {club.contactName && <p className="flex items-center gap-2"><User className="h-4 w-4 text-gray-400" />{club.contactName}</p>}
             {club.website && <p className="flex items-center gap-2"><Globe className="h-4 w-4 text-gray-400" />{club.website}</p>}
+            <div className="pt-2 border-t">
+              <ClubPrefix slug={club.slug} prefix={club.prefix} />
+            </div>
           </CardContent>
         </Card>
 

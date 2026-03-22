@@ -26,7 +26,7 @@ export interface SerializedDelivery {
   address: string
   city: string
   customerName: string
-  customerNumber: number
+  customerNumber: string
   phone: string | null
   products: string
   totalAmount: number
@@ -284,7 +284,7 @@ export default function DeliveryTable({
         d.address.toLowerCase().includes(search) ||
         d.city.toLowerCase().includes(search) ||
         d.customerName.toLowerCase().includes(search) ||
-        d.customerNumber.toString().includes(search) ||
+        d.customerNumber.toLowerCase().includes(search) ||
         d.products.toLowerCase().includes(search) ||
         d.teamName.toLowerCase().includes(search) ||
         (d.phone?.includes(search) ?? false) ||

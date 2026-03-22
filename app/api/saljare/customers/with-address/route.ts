@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { generateCustomerNumber } from '@/lib/customer-number'
 
 // Create a new customer with a new address under the team's first street
 export async function POST(request: NextRequest) {
@@ -38,6 +39,18 @@ export async function POST(request: NextRequest) {
 
     const streetId = district.streets[0].id
 
+    // Look up clubId from team
+    const team = await prisma.team.findFirst({
+      where: { id: user.teamId },
+      include: { lagGroup: true },
+    })
+
+    if (!team) {
+      return NextResponse.json({ error: 'Team not found' }, { status: 400 })
+    }
+
+    const customerNumber = await generateCustomerNumber(team.lagGroup.clubId)
+
     // Create address and customer in a transaction
     const result = await prisma.$transaction(async (tx) => {
       const address = await tx.address.create({
@@ -55,6 +68,7 @@ export async function POST(request: NextRequest) {
           phone: phone || null,
           email: email || null,
           subscription: false,
+          customerNumber,
           addressId: address.id,
         },
       })

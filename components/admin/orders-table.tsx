@@ -42,7 +42,7 @@ export interface SerializedOrder {
   createdAt: string
   customer: {
     id: string
-    customerNumber: number
+    customerNumber: string
     name: string
     phone: string | null
     email: string | null
@@ -272,7 +272,7 @@ export default function OrdersTable({ orders, showClubColumn }: OrdersTableProps
       const o = row.original
       return (
         o.customer.name.toLowerCase().includes(search) ||
-        o.customer.customerNumber.toString().includes(search) ||
+        o.customer.customerNumber.toLowerCase().includes(search) ||
         (o.customer.email?.toLowerCase().includes(search) ?? false) ||
         (o.customer.phone?.includes(search) ?? false) ||
         o.customer.address.street.toLowerCase().includes(search) ||

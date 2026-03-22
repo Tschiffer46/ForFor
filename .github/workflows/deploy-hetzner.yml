@@ -53,6 +53,10 @@ jobs:
             docker pull ghcr.io/tschiffer46/forfor:latest
             cd /home/deploy/hosting
             docker compose up -d forfor
+            # Run SQL migration for customer number type change (safe to re-run)
+            docker compose exec -T forfor-db psql -U forfor -d forfor -c "ALTER TABLE customers ALTER COLUMN customer_number TYPE TEXT USING customer_number::TEXT;" 2>/dev/null || true
+            docker compose exec -T forfor-db psql -U forfor -d forfor -c "ALTER TABLE clubs ADD COLUMN IF NOT EXISTS prefix TEXT;" 2>/dev/null || true
+            docker compose exec -T forfor-db psql -U forfor -d forfor -c "ALTER TABLE clubs ADD COLUMN IF NOT EXISTS next_customer_number INTEGER DEFAULT 10001;" 2>/dev/null || true
             # Run database migrations using the Prisma version bundled in the container
             docker compose exec -T forfor node node_modules/prisma/build/index.js db push --accept-data-loss
           ENDSSH

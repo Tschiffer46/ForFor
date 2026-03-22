@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { generateCustomerNumber } from '@/lib/customer-number'
 
 export async function GET() {
   try {
@@ -91,12 +92,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ogiltig adress' }, { status: 400 })
     }
 
+    const customerNumber = await generateCustomerNumber(user.clubId!)
+
     const customer = await prisma.customer.create({
       data: {
         name,
         phone: phone || null,
         email: email || null,
         subscription: subscription || false,
+        customerNumber,
         addressId,
       },
     })

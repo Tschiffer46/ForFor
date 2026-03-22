@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { reserveCustomerNumbers } from '@/lib/customer-number'
 
 interface ImportCustomer {
   namn: string
@@ -12,6 +13,18 @@ interface ImportCustomer {
   stad: string
   lag?: string
   lagNamn?: string
+}
+
+interface RejectedRow {
+  row: number
+  data: ImportCustomer
+  reason: string
+}
+
+interface WarningRow {
+  row: number
+  data: ImportCustomer
+  warnings: string[]
 }
 
 export async function POST(request: NextRequest) {
@@ -34,20 +47,42 @@ export async function POST(request: NextRequest) {
     }
 
     let imported = 0
-    let skipped = 0
-    const errors: string[] = []
+    let numberIndex = 0
+    const rejectedRows: RejectedRow[] = []
+    const warningRows: WarningRow[] = []
 
-    for (const customerData of customers) {
+    // Reserve a batch of customer numbers upfront (max possible = total rows)
+    const { prefix, startNumber } = await reserveCustomerNumbers(
+      user.clubId,
+      customers.length
+    )
+
+    for (let i = 0; i < customers.length; i++) {
+      const customerData = customers[i]
+      const rowNumber = i + 1
+
       try {
         // Validate required fields
-        if (!customerData.namn || !customerData.gatuadress) {
-          skipped++
-          errors.push(`Saknar namn eller adress for rad`)
+        const missingFields: string[] = []
+        if (!customerData.namn?.trim()) missingFields.push('namn')
+        if (!customerData.gatuadress?.trim()) missingFields.push('gatuadress')
+
+        if (missingFields.length > 0) {
+          rejectedRows.push({
+            row: rowNumber,
+            data: customerData,
+            reason: `Saknar ${missingFields.join(' och ')}`,
+          })
           continue
         }
 
-        // Find or create lag group (age group, e.g. "Flickor 08")
-        const lagGroupName = customerData.lag || 'Standard'
+        // Track warnings for optional fields
+        const warnings: string[] = []
+        if (!customerData.postnummer?.trim()) warnings.push('Saknar postnummer')
+        if (!customerData.stad?.trim()) warnings.push('Saknar stad')
+
+        // Find or create lag group
+        const lagGroupName = customerData.lag?.trim() || 'Standard'
         let lagGroup = await prisma.lagGroup.findFirst({
           where: {
             name: lagGroupName,
@@ -64,8 +99,8 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // Find or create team (operational unit, e.g. "Team A")
-        const teamName = customerData.lagNamn || 'Standard'
+        // Find or create team
+        const teamName = customerData.lagNamn?.trim() || 'Standard'
         let team = await prisma.team.findFirst({
           where: {
             name: teamName,
@@ -99,10 +134,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Find or create street
+        const streetName = customerData.gatuadress.trim()
+        const cityName = customerData.stad?.trim() || ''
         let street = await prisma.street.findFirst({
           where: {
-            name: customerData.gatuadress,
-            city: customerData.stad,
+            name: streetName,
+            city: cityName,
             districtId: district.id,
           },
         })
@@ -110,19 +147,20 @@ export async function POST(request: NextRequest) {
         if (!street) {
           street = await prisma.street.create({
             data: {
-              name: customerData.gatuadress,
-              city: customerData.stad,
+              name: streetName,
+              city: cityName,
               districtId: district.id,
             },
           })
         }
 
         // Find or create address
+        const postalCode = customerData.postnummer?.trim() || ''
         let address = await prisma.address.findFirst({
           where: {
-            street: customerData.gatuadress,
-            postalCode: customerData.postnummer,
-            city: customerData.stad,
+            street: streetName,
+            postalCode: postalCode,
+            city: cityName,
             streetId: street.id,
           },
         })
@@ -130,9 +168,9 @@ export async function POST(request: NextRequest) {
         if (!address) {
           address = await prisma.address.create({
             data: {
-              street: customerData.gatuadress,
-              postalCode: customerData.postnummer,
-              city: customerData.stad,
+              street: streetName,
+              postalCode: postalCode,
+              city: cityName,
               streetId: street.id,
             },
           })
@@ -141,41 +179,71 @@ export async function POST(request: NextRequest) {
         // Check if customer already exists at this address
         const existingCustomer = await prisma.customer.findFirst({
           where: {
-            name: customerData.namn,
+            name: customerData.namn.trim(),
             addressId: address.id,
           },
         })
 
         if (existingCustomer) {
-          skipped++
+          rejectedRows.push({
+            row: rowNumber,
+            data: customerData,
+            reason: 'Duplicerad kund (samma namn och adress finns redan)',
+          })
           continue
         }
 
-        // Create customer
+        // Create customer with club-prefixed number
+        const customerNumber = `${prefix}-${startNumber + numberIndex}`
+        numberIndex++
+
         await prisma.customer.create({
           data: {
-            name: customerData.namn,
-            phone: customerData.telefon || null,
-            email: customerData.epost || null,
+            name: customerData.namn.trim(),
+            phone: customerData.telefon?.trim() || null,
+            email: customerData.epost?.trim() || null,
             subscription: false,
+            customerNumber,
             addressId: address.id,
           },
         })
 
         imported++
+
+        if (warnings.length > 0) {
+          warningRows.push({
+            row: rowNumber,
+            data: customerData,
+            warnings,
+          })
+        }
       } catch (error) {
-        skipped++
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-        errors.push(`Fel vid import av rad: ${errorMessage}`)
+        const errorMessage = error instanceof Error ? error.message : 'Okänt fel'
+        rejectedRows.push({
+          row: rowNumber,
+          data: customerData,
+          reason: `Tekniskt fel: ${errorMessage}`,
+        })
       }
+    }
+
+    // Adjust the club counter back if we reserved more numbers than we used
+    const unused = customers.length - numberIndex
+    if (unused > 0) {
+      await prisma.club.update({
+        where: { id: user.clubId },
+        data: { nextCustomerNumber: { decrement: unused } },
+      })
     }
 
     revalidatePath('/admin/kunder')
     return NextResponse.json({
       imported,
-      skipped,
+      skipped: rejectedRows.length,
+      warnings: warningRows.length,
       total: customers.length,
-      errors: errors.slice(0, 10), // Return first 10 errors
+      rejectedRows,
+      warningRows,
     })
   } catch (error) {
     console.error('Error importing customers:', error)

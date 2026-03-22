@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { generateCustomerNumber } from '@/lib/customer-number'
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,12 +52,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Look up clubId from user's team
+    const team = await prisma.team.findFirst({
+      where: { id: user.teamId! },
+      include: { lagGroup: true },
+    })
+
+    if (!team) {
+      return NextResponse.json({ error: 'Team not found' }, { status: 400 })
+    }
+
+    const customerNumber = await generateCustomerNumber(team.lagGroup.clubId)
+
     const customer = await prisma.customer.create({
       data: {
         name,
         phone,
         email,
         subscription: subscription || false,
+        customerNumber,
         addressId,
       },
     })

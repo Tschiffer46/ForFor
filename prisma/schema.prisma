@@ -116,7 +116,9 @@ model Club {
   color2       String?
   color3       String?
   color4       String?
-  active       Boolean @default(true)
+  active             Boolean @default(true)
+  prefix             String? // e.g. "UIF" for customer number prefix
+  nextCustomerNumber Int     @default(10001)
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -230,7 +232,7 @@ model Address {
 
 model Customer {
   id             String  @id @default(cuid())
-  customerNumber Int     @default(autoincrement()) @unique
+  customerNumber String  @unique
   name           String
   phone          String?
   email          String?

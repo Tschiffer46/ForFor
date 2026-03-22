@@ -237,6 +237,7 @@ async function main() {
       phone: '070-1234567',
       email: 'anna@exempel.se',
       subscription: true,
+      customerNumber: 'UPPAKRA-10001',
       addressId: addresses[0].id,
     },
   })
@@ -245,6 +246,7 @@ async function main() {
       name: 'Lars Pettersson',
       phone: '070-2345678',
       subscription: false,
+      customerNumber: 'UPPAKRA-10002',
       addressId: addresses[1].id,
     },
   })
@@ -254,6 +256,7 @@ async function main() {
       phone: '070-3456789',
       email: 'maria@exempel.se',
       subscription: false,
+      customerNumber: 'UPPAKRA-10003',
       addressId: addresses2[0].id,
     },
   })

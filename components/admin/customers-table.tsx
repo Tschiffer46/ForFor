@@ -20,7 +20,7 @@ import { DeleteButton } from '@/components/admin/delete-button'
 
 export interface SerializedCustomer {
   id: string
-  customerNumber: number
+  customerNumber: string
   name: string
   phone: string | null
   email: string | null
@@ -89,7 +89,6 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
             Kundnr <SortIcon column={column} />
           </button>
         ),
-        sortingFn: 'basic',
       },
       {
         accessorKey: 'name',
@@ -107,13 +106,18 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
             Adress <SortIcon column={column} />
           </button>
         ),
+        cell: ({ row }) => row.original.address.street,
+      },
+      {
+        id: 'postalCode',
+        accessorFn: (row) => row.address.postalCode,
+        header: ({ column }) => (
+          <button className="flex items-center" onClick={() => column.toggleSorting()}>
+            Postnr <SortIcon column={column} />
+          </button>
+        ),
         cell: ({ row }) => (
-          <div className="text-sm">
-            <p>{row.original.address.street}</p>
-            <p className="text-gray-500">
-              {row.original.address.postalCode} {row.original.address.city}
-            </p>
-          </div>
+          <span className="whitespace-nowrap">{row.original.address.postalCode}</span>
         ),
       },
       {
@@ -121,7 +125,7 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
         accessorFn: (row) => row.address.city,
         header: ({ column }) => (
           <button className="flex items-center" onClick={() => column.toggleSorting()}>
-            Ort <SortIcon column={column} />
+            Stad <SortIcon column={column} />
           </button>
         ),
         cell: ({ row }) => row.original.address.city,
@@ -151,17 +155,6 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
           <span className="text-center block">{row.original.orderCount}</span>
         ),
         sortingFn: 'basic',
-      },
-      {
-        accessorKey: 'lastCampaignName',
-        header: ({ column }) => (
-          <button className="flex items-center" onClick={() => column.toggleSorting()}>
-            Senaste kampanj <SortIcon column={column} />
-          </button>
-        ),
-        cell: ({ row }) => (
-          <span className="text-sm">{row.original.lastCampaignName || '-'}</span>
-        ),
       },
       {
         accessorKey: 'saleType',
@@ -259,7 +252,7 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
       const c = row.original
       return (
         c.name.toLowerCase().includes(search) ||
-        c.customerNumber.toString().includes(search) ||
+        c.customerNumber.toLowerCase().includes(search) ||
         (c.email?.toLowerCase().includes(search) ?? false) ||
         (c.phone?.includes(search) ?? false) ||
         c.address.street.toLowerCase().includes(search) ||

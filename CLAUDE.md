@@ -35,29 +35,72 @@ IMPORTANT: "LagGroup" = age group (e.g., "Flickor 08"), "Team" = operational uni
 ### File Structure
 ```
 app/
-├── admin/          # Admin pages (ORG_ADMIN + CLUB_ADMIN)
-├── saljare/        # Seller pages (TEAM_MEMBER)
-├── logga-in/       # Login pages
-├── api/            # API routes
-│   ├── admin/      # Admin API (requires CLUB_ADMIN+)
-│   ├── saljare/    # Seller API (requires TEAM_MEMBER)
-│   ├── auth/       # Login/logout
-│   └── seed/       # Database seeding
-├── layout.tsx      # Root layout with NextIntlClientProvider
-└── page.tsx        # Landing page
+├── admin/              # Admin pages (ORG_ADMIN + CLUB_ADMIN)
+├── saljare/            # Seller pages (TEAM_MEMBER)
+│   ├── layout.tsx      # Seller layout: club branding (logo, colors), logout, bottom nav
+│   ├── page.tsx        # Dashboard: "Idag" (street progress, quick actions) + "Statistik" tabs
+│   ├── dashboard-tabs.tsx  # Client component for dashboard tab switching
+│   ├── ny-bestallning/
+│   │   └── page.tsx    # 3-step order flow: identify customer → select products → payment
+│   ├── bestallningar/
+│   │   ├── page.tsx    # Order list (server component)
+│   │   └── order-card.tsx  # Order card with pay/receipt buttons (client)
+│   ├── produkter/
+│   │   └── page.tsx    # Product catalog (browse only, with images)
+│   └── adresser/
+│       ├── page.tsx    # Address list with visit status (server)
+│       └── address-list.tsx  # Address cards with mark-visit dialog (client)
+├── s/[slug]/           # Passwordless club login (e.g., /s/uppakra)
+│   ├── page.tsx        # Club branding + team picker
+│   └── club-login-form.tsx  # Name + team selection form
+├── logga-in/           # Password-based login pages
+├── api/
+│   ├── admin/          # Admin API (requires CLUB_ADMIN+)
+│   ├── saljare/        # Seller API (requires TEAM_MEMBER)
+│   │   ├── addresses/  # GET with ?q= search support
+│   │   ├── customers/  # GET/POST/PATCH (create, update contact info)
+│   │   ├── customers/with-address/  # POST: create customer + new address together
+│   │   ├── orders/     # POST: create order
+│   │   ├── orders/[id]/pay/     # PATCH: mark order as paid
+│   │   ├── orders/[id]/receipt/ # POST: send receipt via email/SMS
+│   │   ├── products/   # GET with images
+│   │   └── visits/     # POST: record visit result
+│   ├── auth/           # Login/logout + passwordless saljare-login
+│   ├── uploads/[...path]/ # Serve uploaded files (product images, club logos)
+│   └── seed/           # Database seeding
+├── layout.tsx          # Root layout with NextIntlClientProvider
+└── page.tsx            # Landing page
 components/
-├── ui/             # shadcn/ui primitives
-└── admin/          # Admin-specific components (sidebar, forms)
+├── ui/                 # shadcn/ui primitives
+├── admin/              # Admin-specific components (sidebar, forms)
+└── saljare/
+    ├── bottom-nav.tsx  # Bottom tab bar (Hem, Ny Order, Produkter, Mina Orders)
+    └── mark-visit-dialog.tsx  # Visit result dialog (Köpte!, Nej tack, etc.)
 lib/
-├── auth.ts         # Session management, role checks
-└── prisma.ts       # Prisma client singleton
+├── auth.ts             # Session management, role checks, passwordless auth
+├── prisma.ts           # Prisma client singleton
+└── upload.ts           # File upload helper (products, clubs)
 prisma/
-├── schema.prisma   # Data model
-└── seed.ts         # Seed script
+├── schema.prisma       # Data model
+└── seed.ts             # Seed script
 messages/
-├── sv.json         # Swedish translations
-└── en.json         # English translations
+├── sv.json             # Swedish translations
+└── en.json             # English translations
 ```
+
+### Seller App Flow
+The seller app (`/saljare/*`) is designed for early-teen sales reps doing door-to-door fundraising.
+
+**Login:** Club admin shares a link like `forfor.agiletransition.se/s/uppakra`. Teen enters name, picks team, taps "Starta" — no password needed. The club slug acts as implicit authorization.
+
+**Dashboard (`/saljare`):** Two tabs — "Idag" shows streets with visit progress bars and quick action buttons; "Statistik" shows order counts and revenue. First-time users see a 4-step explainer.
+
+**New Order (`/saljare/ny-bestallning`):** Three-step flow:
+1. **Identify customer** — Search by street name, pick address, pick existing customer or create new one. If address not found, create new address+customer together.
+2. **Select products** — Compact product cards with images, +/- quantity buttons, sticky total bar.
+3. **Payment** — Swish QR code shown first, large "Kunden har betalat" button (dominant). "Betala senare" is a small link that verifies customer contact info before proceeding to invoice delivery options (email/SMS).
+
+**Club branding:** Layout fetches club logo and colors, sets CSS custom properties (`--club-primary`, `--club-secondary`). All accent colors use these variables, with green fallback.
 
 ## Code Conventions
 - Swedish UI text, English code (variable names, field names, comments)
