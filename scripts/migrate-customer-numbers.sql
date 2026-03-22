@@ -1,14 +1,11 @@
 -- Migration: Convert customerNumber from integer to text with club prefix
--- Run this BEFORE deploying the new schema
--- Usage: docker compose exec -T postgres psql -U forfor -d forfor < scripts/migrate-customer-numbers.sql
+-- NOTE: Prisma uses camelCase column names, not snake_case!
+-- Run this BEFORE deploying the new schema if db push can't handle the type change
+-- Usage: docker compose exec -T forfor-db psql -U forfor -d forfor < scripts/migrate-customer-numbers.sql
 
 -- Step 1: Add prefix and nextCustomerNumber columns to clubs
 ALTER TABLE clubs ADD COLUMN IF NOT EXISTS prefix TEXT;
-ALTER TABLE clubs ADD COLUMN IF NOT EXISTS next_customer_number INTEGER DEFAULT 10001;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS "nextCustomerNumber" INTEGER DEFAULT 10001;
 
--- Step 2: Convert customer_number from integer to text
--- PostgreSQL can cast integer to text safely
-ALTER TABLE customers ALTER COLUMN customer_number TYPE TEXT USING customer_number::TEXT;
-
--- Step 3: Done! After deploy, set the prefix for each club via the admin UI
--- Then re-import customers or manually update existing customer numbers
+-- Step 2: Convert customerNumber from integer to text
+ALTER TABLE customers ALTER COLUMN "customerNumber" TYPE TEXT USING "customerNumber"::TEXT;
