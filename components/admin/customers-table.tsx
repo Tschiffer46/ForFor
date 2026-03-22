@@ -14,7 +14,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowUpDown, ArrowUp, ArrowDown, Edit, Trash2 } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown, Edit, Trash2, Download } from 'lucide-react'
+import Papa from 'papaparse'
 import { KundForm } from '@/components/admin/kund-form'
 import { DeleteButton } from '@/components/admin/delete-button'
 
@@ -33,7 +34,6 @@ export interface SerializedCustomer {
   teamName: string
   orderCount: number
   lastCampaignName: string | null
-  saleType: string
   visitStatus: string
 }
 
@@ -48,7 +48,6 @@ function SortIcon({ column }: { column: { getIsSorted: () => false | 'asc' | 'de
   return <ArrowUpDown className="ml-1 h-3 w-3 inline opacity-40" />
 }
 
-const SALE_TYPES = ['Säljare', 'Webbsida', 'Ingen försäljning ännu'] as const
 const VISIT_STATUSES = [
   'Besökt och köpte',
   'Besökt, köpte inte',
@@ -61,7 +60,6 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [subscriptionFilter, setSubscriptionFilter] = useState<string>('alla')
-  const [saleTypeFilter, setSaleTypeFilter] = useState<string>('alla')
   const [visitStatusFilter, setVisitStatusFilter] = useState<string>('alla')
 
   const filteredData = useMemo(() => {
@@ -71,14 +69,11 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
         subscriptionFilter === 'ja' ? c.subscription : !c.subscription
       )
     }
-    if (saleTypeFilter !== 'alla') {
-      data = data.filter((c) => c.saleType === saleTypeFilter)
-    }
     if (visitStatusFilter !== 'alla') {
       data = data.filter((c) => c.visitStatus === visitStatusFilter)
     }
     return data
-  }, [customers, subscriptionFilter, saleTypeFilter, visitStatusFilter])
+  }, [customers, subscriptionFilter, visitStatusFilter])
 
   const columns = useMemo<ColumnDef<SerializedCustomer>[]>(
     () => [
@@ -157,24 +152,6 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
         sortingFn: 'basic',
       },
       {
-        accessorKey: 'saleType',
-        header: ({ column }) => (
-          <button className="flex items-center" onClick={() => column.toggleSorting()}>
-            Försäljningstyp <SortIcon column={column} />
-          </button>
-        ),
-        cell: ({ row }) => {
-          const type = row.original.saleType
-          const variant =
-            type === 'Säljare'
-              ? 'default'
-              : type === 'Webbsida'
-                ? 'secondary'
-                : 'outline'
-          return <Badge variant={variant as 'default' | 'secondary' | 'outline'}>{type}</Badge>
-        },
-      },
-      {
         accessorKey: 'visitStatus',
         header: ({ column }) => (
           <button className="flex items-center" onClick={() => column.toggleSorting()}>
@@ -238,6 +215,30 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
     []
   )
 
+  const handleExportCsv = () => {
+    const rows = table.getFilteredRowModel().rows.map((row) => {
+      const c = row.original
+      return {
+        Kundnummer: c.customerNumber,
+        Namn: c.name,
+        Adress: c.address.street,
+        Postnummer: c.address.postalCode,
+        Stad: c.address.city,
+        Telefon: c.phone || '',
+        Epost: c.email || '',
+        Abonnemang: c.subscription ? 'Ja' : 'Nej',
+      }
+    })
+    const csv = '\uFEFF' + Papa.unparse(rows)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'kunder.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   const table = useReactTable({
     data: filteredData,
     columns,
@@ -288,18 +289,6 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
               <option value="nej">Utan abonnemang</option>
             </select>
             <select
-              value={saleTypeFilter}
-              onChange={(e) => setSaleTypeFilter(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="alla">Alla försäljningstyper</option>
-              {SALE_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-            <select
               value={visitStatusFilter}
               onChange={(e) => setVisitStatusFilter(e.target.value)}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
@@ -311,6 +300,10 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
                 </option>
               ))}
             </select>
+            <Button variant="outline" size="sm" className="ml-auto" onClick={handleExportCsv}>
+              <Download className="h-4 w-4 mr-1" />
+              Ladda ner Excel
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -319,7 +312,7 @@ export default function CustomersTable({ customers }: CustomersTableProps) {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead className="bg-gray-50 border-b">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>

@@ -1,8 +1,11 @@
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { formatCurrency } from '@/lib/utils'
+import { Plus } from 'lucide-react'
 import OrdersTable, { type SerializedOrder } from '@/components/admin/orders-table'
+import { OrderForm } from '@/components/admin/order-form'
 
 export default async function BestallningarPage() {
   const user = await getCurrentUser()
@@ -20,6 +23,27 @@ export default async function BestallningarPage() {
   if (!whereClause) {
     return <p className="text-gray-500">Ingen klubb tilldelad.</p>
   }
+
+  // Fetch data for the order form (only for CLUB_ADMIN with a club)
+  const [allCampaigns, allTeams, allProducts] = user.clubId
+    ? await Promise.all([
+        prisma.campaign.findMany({
+          where: { clubId: user.clubId },
+          select: { id: true, name: true },
+          orderBy: { salesStart: 'desc' },
+        }),
+        prisma.team.findMany({
+          where: { lagGroup: { clubId: user.clubId } },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        }),
+        prisma.product.findMany({
+          where: { campaignProducts: { some: { campaign: { clubId: user.clubId } } } },
+          select: { id: true, name: true, price: true },
+          orderBy: { name: 'asc' },
+        }),
+      ])
+    : [[], [], []]
 
   const orders = await prisma.order.findMany({
     where: whereClause,
@@ -88,11 +112,26 @@ export default async function BestallningarPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-3xl font-bold">Beställningar</h1>
-        <p className="text-gray-600 mt-1">
-          {isOrgAdmin ? 'Alla beställningar från alla klubbar' : 'Översikt över alla beställningar'} ({orders.length} totalt)
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Beställningar</h1>
+          <p className="text-gray-600 mt-1">
+            {isOrgAdmin ? 'Alla beställningar från alla klubbar' : 'Översikt över alla beställningar'} ({orders.length} totalt)
+          </p>
+        </div>
+        {user.clubId && allCampaigns.length > 0 && (
+          <OrderForm
+            campaigns={allCampaigns}
+            teams={allTeams}
+            products={allProducts}
+            trigger={
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Ny beställning
+              </Button>
+            }
+          />
+        )}
       </div>
 
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
@@ -130,7 +169,13 @@ export default async function BestallningarPage() {
         </Card>
       </div>
 
-      <OrdersTable orders={serializedOrders} showClubColumn={isOrgAdmin} />
+      <OrdersTable
+        orders={serializedOrders}
+        showClubColumn={isOrgAdmin}
+        campaigns={allCampaigns}
+        teams={allTeams}
+        products={allProducts}
+      />
     </div>
   )
 }

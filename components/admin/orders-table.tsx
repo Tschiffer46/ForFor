@@ -23,7 +23,9 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/utils'
-import { ArrowUpDown, ArrowUp, ArrowDown, Bell } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown, Bell, Edit, Trash2 } from 'lucide-react'
+import { OrderForm } from '@/components/admin/order-form'
+import { DeleteButton } from '@/components/admin/delete-button'
 
 // Serialized order type (Dates as ISO strings)
 export interface SerializedOrderItem {
@@ -68,6 +70,9 @@ export interface SerializedOrder {
 interface OrdersTableProps {
   orders: SerializedOrder[]
   showClubColumn: boolean
+  campaigns?: { id: string; name: string }[]
+  teams?: { id: string; name: string }[]
+  products?: { id: string; name: string; price: number }[]
 }
 
 function SortIcon({ column }: { column: { getIsSorted: () => false | 'asc' | 'desc' } }) {
@@ -77,7 +82,7 @@ function SortIcon({ column }: { column: { getIsSorted: () => false | 'asc' | 'de
   return <ArrowUpDown className="ml-1 h-3 w-3 inline opacity-40" />
 }
 
-export default function OrdersTable({ orders, showClubColumn }: OrdersTableProps) {
+export default function OrdersTable({ orders, showClubColumn, campaigns: formCampaigns = [], teams: formTeams = [], products: formProducts = [] }: OrdersTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'createdAt', desc: true },
   ])
@@ -238,6 +243,59 @@ export default function OrdersTable({ orders, showClubColumn }: OrdersTableProps
       },
     ]
 
+    // Add actions column if form data is available
+    if (formCampaigns.length > 0) {
+      cols.push({
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const o = row.original
+          return (
+            <div className="flex gap-1">
+              <OrderForm
+                campaigns={formCampaigns}
+                teams={formTeams}
+                products={formProducts}
+                order={{
+                  id: o.id,
+                  customerId: o.customer.id,
+                  customerName: o.customer.name,
+                  campaignId: o.campaign.id,
+                  teamId: o.team.id,
+                  status: o.status,
+                  comment: o.comment,
+                  items: o.items.map((i) => ({
+                    productId: i.product.id,
+                    quantity: i.quantity,
+                  })),
+                }}
+                trigger={
+                  <Button variant="ghost" size="sm">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                }
+              />
+              <DeleteButton
+                itemName={`beställning till ${o.customer.name}`}
+                itemType="beställning"
+                deleteUrl={`/api/admin/bestallningar/${o.id}`}
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                }
+              />
+            </div>
+          )
+        },
+      })
+    }
+
     if (showClubColumn) {
       // Insert club column after "Kund"
       cols.splice(3, 0, {
@@ -255,7 +313,7 @@ export default function OrdersTable({ orders, showClubColumn }: OrdersTableProps
     }
 
     return cols
-  }, [showClubColumn])
+  }, [showClubColumn, formCampaigns, formTeams, formProducts])
 
   const table = useReactTable({
     data: filteredData,

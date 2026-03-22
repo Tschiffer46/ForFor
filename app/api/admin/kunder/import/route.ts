@@ -50,6 +50,8 @@ export async function POST(request: NextRequest) {
     let numberIndex = 0
     const rejectedRows: RejectedRow[] = []
     const warningRows: WarningRow[] = []
+    const createdLagGroups = new Set<string>()
+    const createdTeams = new Set<string>()
 
     // Reserve a batch of customer numbers upfront (max possible = total rows)
     const { prefix, startNumber } = await reserveCustomerNumbers(
@@ -97,6 +99,7 @@ export async function POST(request: NextRequest) {
               clubId: user.clubId,
             },
           })
+          createdLagGroups.add(lagGroupName)
         }
 
         // Find or create team
@@ -115,6 +118,7 @@ export async function POST(request: NextRequest) {
               lagGroupId: lagGroup.id,
             },
           })
+          createdTeams.add(`${lagGroupName} / ${teamName}`)
         }
 
         // Find or create district
@@ -244,6 +248,8 @@ export async function POST(request: NextRequest) {
       total: customers.length,
       rejectedRows,
       warningRows,
+      createdLagGroups: Array.from(createdLagGroups),
+      createdTeams: Array.from(createdTeams),
     })
   } catch (error) {
     console.error('Error importing customers:', error)

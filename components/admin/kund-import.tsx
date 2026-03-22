@@ -19,6 +19,7 @@ import readXlsxFile from 'read-excel-file'
 
 interface KundImportProps {
   trigger: React.ReactNode
+  clubSlug?: string
 }
 
 interface ParsedCustomer {
@@ -51,6 +52,8 @@ interface ImportResult {
   total: number
   rejectedRows: RejectedRow[]
   warningRows: WarningRow[]
+  createdLagGroups: string[]
+  createdTeams: string[]
 }
 
 function parseRow(obj: Record<string, unknown>): ParsedCustomer {
@@ -74,7 +77,7 @@ function parseRow(obj: Record<string, unknown>): ParsedCustomer {
   }
 }
 
-export function KundImport({ trigger }: KundImportProps) {
+export function KundImport({ trigger, clubSlug }: KundImportProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -345,6 +348,31 @@ export function KundImport({ trigger }: KundImportProps) {
                     <Download className="h-4 w-4 mr-2" />
                     Ladda ner avvisade rader (CSV)
                   </Button>
+                </div>
+              )}
+
+              {/* Created teams info */}
+              {(result.createdTeams.length > 0 || result.createdLagGroups.length > 0) && (
+                <div className="p-3 rounded-lg bg-blue-50 text-blue-800">
+                  <p className="font-medium text-sm">Nya lag/team skapades:</p>
+                  <ul className="mt-1 ml-4 text-sm list-disc">
+                    {result.createdTeams.map((t) => (
+                      <li key={t}>{t}</li>
+                    ))}
+                  </ul>
+                  {clubSlug && (
+                    <p className="mt-2 text-sm">
+                      Säljare kan logga in direkt via:{' '}
+                      <a
+                        href={`/s/${clubSlug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium underline"
+                      >
+                        forfor.agiletransition.se/s/{clubSlug}
+                      </a>
+                    </p>
+                  )}
                 </div>
               )}
 

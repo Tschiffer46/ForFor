@@ -3,15 +3,21 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
-import { Users, Plus, Edit, Trash2, UserPlus } from 'lucide-react'
+import { Users, Plus, Edit, Trash2, UserPlus, Link2, Download, Upload } from 'lucide-react'
 import { LagForm } from '@/components/admin/lag-form'
 import { TeamForm } from '@/components/admin/team-form'
 import { TeamMemberForm } from '@/components/admin/team-member-form'
 import { DeleteButton } from '@/components/admin/delete-button'
+import { LagImport } from '@/components/admin/lag-import'
 
 export default async function LagPage() {
   const user = await getCurrentUser()
   if (!user || !user.clubId) return <p className="text-gray-500">Välj en klubb först.</p>
+
+  const club = await prisma.club.findUnique({
+    where: { id: user.clubId },
+    select: { slug: true },
+  })
 
   const lagGroups = await prisma.lagGroup.findMany({
     where: { clubId: user.clubId },
@@ -37,14 +43,30 @@ export default async function LagPage() {
           <h1 className="text-3xl font-bold">Lag & Team</h1>
           <p className="text-gray-600 mt-1">Hantera laggrupper, team och medlemmar</p>
         </div>
-        <LagForm
-          trigger={
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Ny laggrupp
+        <div className="flex gap-2">
+          <a href="/api/admin/lag/export" download>
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Ladda ner Excel
             </Button>
-          }
-        />
+          </a>
+          <LagImport
+            trigger={
+              <Button variant="outline">
+                <Upload className="h-4 w-4 mr-2" />
+                Importera
+              </Button>
+            }
+          />
+          <LagForm
+            trigger={
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Ny laggrupp
+              </Button>
+            }
+          />
+        </div>
       </div>
 
       {/* Summary */}
@@ -82,6 +104,29 @@ export default async function LagPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Seller login link */}
+      {club && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <Link2 className="h-5 w-5 text-blue-600 shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-blue-900">Säljarlänk (dela med lag)</p>
+                <a
+                  href={`/s/${club.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-700 underline"
+                >
+                  forfor.agiletransition.se/s/{club.slug}
+                </a>
+                <p className="text-blue-600 mt-1">Säljare anger sitt namn och väljer team — inget lösenord behövs.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {lagGroups.length === 0 ? (
         <Card>

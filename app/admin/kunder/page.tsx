@@ -8,13 +8,6 @@ import CustomersTable, {
   type SerializedCustomer,
 } from '@/components/admin/customers-table'
 
-function computeSaleType(orders: { source: string }[]): string {
-  if (orders.length === 0) return 'Ingen försäljning ännu'
-  if (orders.some((o) => o.source === 'SALES_REP')) return 'Säljare'
-  if (orders.some((o) => o.source === 'WEB')) return 'Webbsida'
-  return 'Ingen försäljning ännu'
-}
-
 function computeVisitStatus(
   visits: { result: string; createdAt: Date }[],
   hasOrders: boolean
@@ -54,6 +47,11 @@ export default async function KunderPage() {
   if (!user.clubId) {
     return <p className="text-gray-500">Ingen klubb tilldelad.</p>
   }
+
+  const club = await prisma.club.findUnique({
+    where: { id: user.clubId },
+    select: { slug: true },
+  })
 
   const customers = await prisma.customer.findMany({
     where: {
@@ -117,7 +115,6 @@ export default async function KunderPage() {
       teamName: c.address.streetRef.district.team.name,
       orderCount: c.orders.length,
       lastCampaignName: latestOrder?.campaign.name ?? null,
-      saleType: computeSaleType(c.orders),
       visitStatus: computeVisitStatus(c.address.visits, c.orders.length > 0),
     }
   })
@@ -136,6 +133,7 @@ export default async function KunderPage() {
           </p>
         </div>
         <KundImport
+          clubSlug={club?.slug}
           trigger={
             <Button>
               <Upload className="h-4 w-4 mr-2" />

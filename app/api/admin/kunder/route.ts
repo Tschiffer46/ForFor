@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { generateCustomerNumber } from '@/lib/customer-number'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
 
@@ -16,20 +16,41 @@ export async function GET() {
       return NextResponse.json({ error: 'No club assigned' }, { status: 400 })
     }
 
-    const customers = await prisma.customer.findMany({
-      where: {
-        address: {
-          streetRef: {
-            district: {
-              team: {
-                lagGroup: {
-                  clubId: user.clubId,
-                },
+    const q = request.nextUrl.searchParams.get('q')
+
+    const clubFilter = {
+      address: {
+        streetRef: {
+          district: {
+            team: {
+              lagGroup: {
+                clubId: user.clubId,
               },
             },
           },
         },
       },
+    }
+
+    if (q) {
+      const customers = await prisma.customer.findMany({
+        where: {
+          ...clubFilter,
+          OR: [
+            { name: { contains: q, mode: 'insensitive' as const } },
+            { customerNumber: { contains: q, mode: 'insensitive' as const } },
+            { phone: { contains: q } },
+          ],
+        },
+        select: { id: true, name: true, customerNumber: true },
+        orderBy: { name: 'asc' },
+        take: 10,
+      })
+      return NextResponse.json({ customers })
+    }
+
+    const customers = await prisma.customer.findMany({
+      where: clubFilter,
       include: {
         address: {
           include: {
