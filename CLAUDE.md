@@ -36,6 +36,13 @@ IMPORTANT: "LagGroup" = age group (e.g., "Flickor 08"), "Team" = operational uni
 ```
 app/
 ├── admin/              # Admin pages (ORG_ADMIN + CLUB_ADMIN)
+│   ├── bestallningar/  # Order management with create/edit/delete
+│   ├── kunder/         # Customer overview with CSV export
+│   └── lag/            # Team management with import/export
+├── bestall/[slug]/     # Public campaign order page (no auth required)
+│   ├── layout.tsx      # Minimal public layout with club branding
+│   ├── page.tsx        # Server component: fetch club + campaign + products
+│   └── order-form.tsx  # 3-step flow: identify → products → payment
 ├── saljare/            # Seller pages (TEAM_MEMBER)
 │   ├── layout.tsx      # Seller layout: club branding (logo, colors), logout, bottom nav
 │   ├── page.tsx        # Dashboard: "Idag" (street progress, quick actions) + "Statistik" tabs
@@ -50,12 +57,21 @@ app/
 │   └── adresser/
 │       ├── page.tsx    # Address list with visit status (server)
 │       └── address-list.tsx  # Address cards with mark-visit dialog (client)
-├── s/[slug]/           # Passwordless club login (e.g., /s/uppakra)
+├── s/[slug]/           # Passwordless club login (e.g., /s/uppakra-if)
 │   ├── page.tsx        # Club branding + team picker
 │   └── club-login-form.tsx  # Name + team selection form
 ├── logga-in/           # Password-based login pages
 ├── api/
 │   ├── admin/          # Admin API (requires CLUB_ADMIN+)
+│   │   ├── bestallningar/     # POST: create order, GET: list orders
+│   │   ├── bestallningar/[id] # PUT: update order (incl. items), DELETE
+│   │   ├── kunder/            # GET: list or search (?q=), POST: create
+│   │   ├── kunder/import/     # POST: bulk import from CSV/XLSX
+│   │   ├── lag/export/        # GET: download CSV of all lag/teams/members
+│   │   └── lag/import/        # POST: bulk import lag/teams/members
+│   ├── bestall/[slug]/        # Public order API (no auth)
+│   │   ├── route.ts           # POST: create web order
+│   │   └── customer/route.ts  # GET: lookup customer by number
 │   ├── saljare/        # Seller API (requires TEAM_MEMBER)
 │   │   ├── addresses/  # GET with ?q= search support
 │   │   ├── customers/  # GET/POST/PATCH (create, update contact info)
@@ -72,13 +88,22 @@ app/
 └── page.tsx            # Landing page
 components/
 ├── ui/                 # shadcn/ui primitives
-├── admin/              # Admin-specific components (sidebar, forms)
+├── admin/              # Admin-specific components
+│   ├── customers-table.tsx    # Sortable/filterable customer table with CSV export
+│   ├── orders-table.tsx       # Order table with edit/delete actions
+│   ├── order-form.tsx         # Create/edit order dialog
+│   ├── kund-import.tsx        # Customer import dialog (CSV/XLSX)
+│   ├── lag-import.tsx         # Team import dialog (CSV/XLSX)
+│   ├── sort-icon.tsx          # Shared sort indicator for table headers
+│   └── delete-button.tsx      # Reusable delete confirmation dialog
 └── saljare/
     ├── bottom-nav.tsx  # Bottom tab bar (Hem, Ny Order, Produkter, Mina Orders)
     └── mark-visit-dialog.tsx  # Visit result dialog (Köpte!, Nej tack, etc.)
 lib/
 ├── auth.ts             # Session management, role checks, passwordless auth
+├── order.ts            # Shared order logic: calculateOrderItems(), generateOrderSwishQR()
 ├── prisma.ts           # Prisma client singleton
+├── swish.ts            # Swish QR code generation
 └── upload.ts           # File upload helper (products, clubs)
 prisma/
 ├── schema.prisma       # Data model
@@ -101,6 +126,27 @@ The seller app (`/saljare/*`) is designed for early-teen sales reps doing door-t
 3. **Payment** — Swish QR code shown first, large "Kunden har betalat" button (dominant). "Betala senare" is a small link that verifies customer contact info before proceeding to invoice delivery options (email/SMS).
 
 **Club branding:** Layout fetches club logo and colors, sets CSS custom properties (`--club-primary`, `--club-secondary`). All accent colors use these variables, with green fallback.
+
+### Public Order Page (`/bestall/[slug]`)
+Customer-facing campaign order page — no login required. Clubs share a link (e.g., `forfor.agiletransition.se/bestall/uppakra-if`) via WhatsApp/social media.
+
+**Flow:**
+1. **Identify** — Existing customer enters customer number, or new customer fills in name/address/phone/email
+2. **Products** — Product cards with +/- quantities, sticky total bar showing running total
+3. **Confirmation** — Swish QR code for payment, thank you message
+
+**Key details:**
+- Club slug must match DB exactly (e.g., `uppakra-if`, not `uppakra`)
+- New web customers auto-assigned to "Standard" team (admin reassigns later)
+- Duplicate detection: same name + street address prevents double-creation
+- Orders created with `source: "WEB"` to distinguish from seller-created orders
+- Shared order logic in `lib/order.ts` (used by seller, admin, and public APIs)
+
+### Admin Features
+- **Order CRUD** — Admin can create, edit (including order items), and delete orders via `components/admin/order-form.tsx`
+- **Customer CSV export** — Download filtered customer list as CSV (with BOM for Swedish chars in Excel)
+- **Team import/export** — Download all lag/teams/members as CSV, upload CSV/XLSX to create lag groups, teams, and team members
+- **Customer import** — Shows created teams and seller login link after import
 
 ## Code Conventions
 - Swedish UI text, English code (variable names, field names, comments)
