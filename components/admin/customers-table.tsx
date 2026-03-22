@@ -14,8 +14,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowUpDown, ArrowUp, ArrowDown, Edit, Trash2, Download } from 'lucide-react'
+import { Edit, Trash2, Download } from 'lucide-react'
 import Papa from 'papaparse'
+import { SortIcon } from '@/components/admin/sort-icon'
 import { KundForm } from '@/components/admin/kund-form'
 import { DeleteButton } from '@/components/admin/delete-button'
 
@@ -39,13 +40,6 @@ export interface SerializedCustomer {
 
 interface CustomersTableProps {
   customers: SerializedCustomer[]
-}
-
-function SortIcon({ column }: { column: { getIsSorted: () => false | 'asc' | 'desc' } }) {
-  const sort = column.getIsSorted()
-  if (sort === 'asc') return <ArrowUp className="ml-1 h-3 w-3 inline" />
-  if (sort === 'desc') return <ArrowDown className="ml-1 h-3 w-3 inline" />
-  return <ArrowUpDown className="ml-1 h-3 w-3 inline opacity-40" />
 }
 
 const VISIT_STATUSES = [

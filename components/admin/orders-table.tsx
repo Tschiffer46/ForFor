@@ -9,7 +9,6 @@ import {
   flexRender,
   type ColumnDef,
   type SortingState,
-  type ColumnFiltersState,
 } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,7 +22,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/utils'
-import { ArrowUpDown, ArrowUp, ArrowDown, Bell, Edit, Trash2 } from 'lucide-react'
+import { Bell, Edit, Trash2 } from 'lucide-react'
+import { SortIcon } from '@/components/admin/sort-icon'
 import { OrderForm } from '@/components/admin/order-form'
 import { DeleteButton } from '@/components/admin/delete-button'
 
@@ -75,18 +75,10 @@ interface OrdersTableProps {
   products?: { id: string; name: string; price: number }[]
 }
 
-function SortIcon({ column }: { column: { getIsSorted: () => false | 'asc' | 'desc' } }) {
-  const sort = column.getIsSorted()
-  if (sort === 'asc') return <ArrowUp className="ml-1 h-3 w-3 inline" />
-  if (sort === 'desc') return <ArrowDown className="ml-1 h-3 w-3 inline" />
-  return <ArrowUpDown className="ml-1 h-3 w-3 inline opacity-40" />
-}
-
 export default function OrdersTable({ orders, showClubColumn, campaigns: formCampaigns = [], teams: formTeams = [], products: formProducts = [] }: OrdersTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'createdAt', desc: true },
   ])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [showUnpaidDialog, setShowUnpaidDialog] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>('alla')
@@ -323,7 +315,6 @@ export default function OrdersTable({ orders, showClubColumn, campaigns: formCam
       globalFilter,
     },
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, _columnId, filterValue: string) => {
       const search = filterValue.toLowerCase()

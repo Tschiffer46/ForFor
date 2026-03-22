@@ -59,11 +59,8 @@ export default async function BestallningarPage() {
     orderBy: { createdAt: 'desc' },
   })
 
-  const [betaldaCount, obetaldaCount] = await Promise.all([
-    prisma.order.count({ where: { ...whereClause, status: 'BETALD' } }),
-    prisma.order.count({ where: { ...whereClause, status: 'OBETALD' } }),
-  ])
-
+  const betaldaCount = orders.filter((o) => o.status === 'BETALD').length
+  const obetaldaCount = orders.filter((o) => o.status === 'OBETALD').length
   const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0)
 
   // Serialize Dates to ISO strings for the client component

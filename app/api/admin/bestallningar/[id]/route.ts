@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { calculateOrderItems } from '@/lib/order'
 import { revalidatePath } from 'next/cache'
 
 async function getOrderWhereClause(user: { role: string; organizationId?: string | null; clubId?: string | null }, id: string) {
@@ -48,28 +49,10 @@ export async function PUT(
 
     // If items are provided, recalculate total
     if (items && items.length > 0) {
-      const products = await prisma.product.findMany({
-        where: { id: { in: items.map((i) => i.productId) } },
-      })
-
-      let totalAmount = 0
-      const orderItemsData = items.map((item) => {
-        const product = products.find((p) => p.id === item.productId)
-        if (!product) throw new Error(`Produkt ${item.productId} hittades inte`)
-
-        totalAmount += product.price * item.quantity
-        return {
-          productId: item.productId,
-          quantity: item.quantity,
-          unitPrice: product.price,
-          discountApplied: existing.customer.subscription,
-          orderId: id,
-        }
-      })
-
-      if (existing.customer.subscription) {
-        totalAmount = Math.round(totalAmount * 0.9)
-      }
+      const { totalAmount, orderItemsData } = await calculateOrderItems(
+        items,
+        existing.customer.subscription
+      )
 
       // Delete old items and create new ones, update order
       const updateData: Record<string, unknown> = { totalAmount }
@@ -78,7 +61,9 @@ export async function PUT(
 
       await prisma.$transaction([
         prisma.orderItem.deleteMany({ where: { orderId: id } }),
-        prisma.orderItem.createMany({ data: orderItemsData }),
+        prisma.orderItem.createMany({
+          data: orderItemsData.map((item) => ({ ...item, orderId: id })),
+        }),
         prisma.order.update({
           where: { id },
           data: updateData,

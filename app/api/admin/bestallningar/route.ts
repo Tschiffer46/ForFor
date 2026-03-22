@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { generateSwishQRCode, formatSwishMessage } from '@/lib/swish'
+import { calculateOrderItems, generateOrderSwishQR } from '@/lib/order'
 import { revalidatePath } from 'next/cache'
 
 export async function POST(request: NextRequest) {
@@ -41,35 +41,8 @@ export async function POST(request: NextRequest) {
     if (!campaign) return NextResponse.json({ error: 'Kampanj hittades inte' }, { status: 404 })
     if (!team) return NextResponse.json({ error: 'Team hittades inte' }, { status: 404 })
 
-    // Get products and calculate total
-    const products = await prisma.product.findMany({
-      where: { id: { in: items.map((i) => i.productId) } },
-    })
-
-    let totalAmount = 0
-    const orderItemsData = items.map((item) => {
-      const product = products.find((p) => p.id === item.productId)
-      if (!product) throw new Error(`Produkt ${item.productId} hittades inte`)
-
-      totalAmount += product.price * item.quantity
-      return {
-        productId: item.productId,
-        quantity: item.quantity,
-        unitPrice: product.price,
-        discountApplied: customer.subscription,
-      }
-    })
-
-    if (customer.subscription) {
-      totalAmount = Math.round(totalAmount * 0.9)
-    }
-
-    // Generate Swish QR code
-    const club = await prisma.club.findUnique({ where: { id: user.clubId } })
-    const swishQrCode = await generateSwishQRCode({
-      amount: totalAmount,
-      message: formatSwishMessage(`ORDER-${Date.now()}`, club?.name || 'ForFor'),
-    }).catch(() => undefined)
+    const { totalAmount, orderItemsData } = await calculateOrderItems(items, customer.subscription)
+    const swishQrCode = await generateOrderSwishQR(totalAmount, user.clubId)
 
     const order = await prisma.order.create({
       data: {

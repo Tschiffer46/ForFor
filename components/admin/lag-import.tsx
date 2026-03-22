@@ -58,12 +58,12 @@ export function LagImport({ trigger }: LagImportProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [preview, setPreview] = useState<ParsedMember[]>([])
   const [allMembers, setAllMembers] = useState<ParsedMember[]>([])
   const [result, setResult] = useState<ImportResult | null>(null)
 
+  const preview = allMembers.slice(0, 5)
+
   const resetState = () => {
-    setPreview([])
     setAllMembers([])
     setResult(null)
   }
@@ -85,7 +85,6 @@ export function LagImport({ trigger }: LagImportProps) {
           complete: (results) => {
             members = (results.data as Record<string, unknown>[]).map(parseRow)
             setAllMembers(members)
-            setPreview(members.slice(0, 5))
             setLoading(false)
           },
           error: () => {
@@ -106,7 +105,6 @@ export function LagImport({ trigger }: LagImportProps) {
         })
 
         setAllMembers(members)
-        setPreview(members.slice(0, 5))
         setLoading(false)
       } else {
         alert('Endast CSV och Excel-filer (.xlsx, .xls) stöds')

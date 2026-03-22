@@ -29,30 +29,43 @@ export async function POST(req: NextRequest) {
   let updated = 0
   let skipped = 0
 
+  // Pre-fetch existing lagGroups and teams to avoid N+1 queries
+  const existingLagGroups = await prisma.lagGroup.findMany({
+    where: { clubId: user.clubId },
+    include: { teams: true },
+  })
+  const lagGroupCache = new Map<string, { id: string }>(
+    existingLagGroups.map((lg) => [lg.name, lg])
+  )
+  const teamCache = new Map<string, { id: string }>(
+    existingLagGroups.flatMap((lg) =>
+      lg.teams.map((t) => [`${lg.name}::${t.name}`, t])
+    )
+  )
+
   for (const row of members) {
     if (!row.lag || !row.team || !row.medlemsnamn) {
       skipped++
       continue
     }
 
-    // Find or create LagGroup
-    let lagGroup = await prisma.lagGroup.findFirst({
-      where: { name: row.lag, clubId: user.clubId },
-    })
+    // Find or create LagGroup (cached)
+    let lagGroup = lagGroupCache.get(row.lag)
     if (!lagGroup) {
       lagGroup = await prisma.lagGroup.create({
         data: { name: row.lag, clubId: user.clubId },
       })
+      lagGroupCache.set(row.lag, lagGroup)
     }
 
-    // Find or create Team
-    let team = await prisma.team.findFirst({
-      where: { name: row.team, lagGroupId: lagGroup.id },
-    })
+    // Find or create Team (cached)
+    const teamKey = `${row.lag}::${row.team}`
+    let team = teamCache.get(teamKey)
     if (!team) {
       team = await prisma.team.create({
         data: { name: row.team, lagGroupId: lagGroup.id },
       })
+      teamCache.set(teamKey, team)
     }
 
     // Find or create User (match by name case-insensitive within the team)
