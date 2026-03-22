@@ -19,6 +19,7 @@ interface Product {
 interface OrderPageProps {
   slug: string
   clubName: string
+  customerPrefix: string
   campaignName: string
   deliveryStart: string | null
   deliveryEnd: string | null
@@ -44,6 +45,7 @@ function formatDate(iso: string): string {
 export function OrderPage({
   slug,
   clubName,
+  customerPrefix,
   campaignName,
   deliveryStart,
   deliveryEnd,
@@ -282,7 +284,7 @@ export function OrderPage({
             onClick={() => setMode('existing')}
           >
             <p className="font-semibold">Jag har ett kundnummer</p>
-            <p className="text-sm text-gray-600">T.ex. UIF-10001</p>
+            <p className="text-sm text-gray-600">T.ex. {customerPrefix}-10001</p>
           </button>
           <button
             className={`p-4 rounded-lg border-2 text-left transition-colors ${
@@ -302,7 +304,7 @@ export function OrderPage({
             <CardContent className="pt-4 space-y-3">
               <div className="flex gap-2">
                 <Input
-                  placeholder="Kundnummer, t.ex. UIF-10001"
+                  placeholder={`Kundnummer, t.ex. ${customerPrefix}-10001`}
                   value={customerNumber}
                   onChange={(e) => setCustomerNumber(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && handleLookup()}

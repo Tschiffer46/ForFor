@@ -64,6 +64,7 @@ export default async function BestallPage({
     <OrderPage
       slug={slug}
       clubName={club.name}
+      customerPrefix={club.prefix || club.slug.toUpperCase()}
       campaignName={campaign.name}
       deliveryStart={campaign.deliveryStart?.toISOString() ?? null}
       deliveryEnd={campaign.deliveryEnd?.toISOString() ?? null}
