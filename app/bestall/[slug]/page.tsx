@@ -38,8 +38,13 @@ export default async function BestallPage({
               id: true,
               name: true,
               price: true,
-              imageUrl: true,
               size: true,
+              description: true,
+              images: {
+                select: { imagePath: true },
+                orderBy: { sortOrder: 'asc' as const },
+                take: 1,
+              },
             },
           },
         },
@@ -58,7 +63,10 @@ export default async function BestallPage({
     )
   }
 
-  const products = campaign.products.map((cp) => cp.product)
+  const products = campaign.products.map((cp) => ({
+    ...cp.product,
+    imagePath: cp.product.images[0]?.imagePath ?? null,
+  }))
 
   return (
     <OrderPage
@@ -66,6 +74,8 @@ export default async function BestallPage({
       clubName={club.name}
       customerPrefix={club.prefix || club.slug.toUpperCase()}
       campaignName={campaign.name}
+      salesStart={campaign.salesStart.toISOString()}
+      salesEnd={campaign.salesEnd.toISOString()}
       deliveryStart={campaign.deliveryStart?.toISOString() ?? null}
       deliveryEnd={campaign.deliveryEnd?.toISOString() ?? null}
       products={products}

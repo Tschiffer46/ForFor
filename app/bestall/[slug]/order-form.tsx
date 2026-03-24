@@ -1,19 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
-import { CheckCircle, ShoppingBag, ArrowLeft } from 'lucide-react'
+import {
+  CheckCircle,
+  ShoppingBag,
+  ArrowLeft,
+  Search,
+  CalendarDays,
+  Truck,
+} from 'lucide-react'
 
 interface Product {
   id: string
   name: string
   price: number
-  imageUrl: string | null
+  imagePath: string | null
   size: string | null
+  description: string | null
 }
 
 interface OrderPageProps {
@@ -21,6 +29,8 @@ interface OrderPageProps {
   clubName: string
   customerPrefix: string
   campaignName: string
+  salesStart: string
+  salesEnd: string
   deliveryStart: string | null
   deliveryEnd: string | null
   products: Product[]
@@ -32,9 +42,26 @@ interface OrderItem {
   unitPrice: number
 }
 
-type Step = 'products' | 'identify' | 'summary'
+interface SearchResult {
+  id: string
+  name: string
+  customerNumber: string
+  subscription: boolean
+  email: string | null
+  phone: string | null
+  address: { street: string; postalCode: string; city: string }
+}
+
+type Step = 'products' | 'identify' | 'payment' | 'summary'
 
 function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('sv-SE', {
+    day: 'numeric',
+    month: 'long',
+  })
+}
+
+function formatDateLong(iso: string): string {
   return new Date(iso).toLocaleDateString('sv-SE', {
     weekday: 'long',
     day: 'numeric',
@@ -47,6 +74,8 @@ export function OrderPage({
   clubName,
   customerPrefix,
   campaignName,
+  salesStart,
+  salesEnd,
   deliveryStart,
   deliveryEnd,
   products,
@@ -57,17 +86,17 @@ export function OrderPage({
   const [quantities, setQuantities] = useState<Record<string, number>>({})
 
   // Identify step
-  const [mode, setMode] = useState<'existing' | 'new' | null>(null)
-  const [customerNumber, setCustomerNumber] = useState('')
-  const [lookupResult, setLookupResult] = useState<{
-    id: string
-    name: string
-    customerNumber: string
-    subscription: boolean
-    address: { street: string; postalCode: string; city: string }
-  } | null>(null)
-  const [lookupError, setLookupError] = useState('')
-  const [lookupLoading, setLookupLoading] = useState(false)
+  const [mode, setMode] = useState<'search' | 'new' | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [selectedCustomer, setSelectedCustomer] = useState<SearchResult | null>(
+    null
+  )
+
+  // Contact confirmation
+  const [confirmEmail, setConfirmEmail] = useState('')
+  const [confirmPhone, setConfirmPhone] = useState('')
 
   // New customer fields
   const [newName, setNewName] = useState('')
@@ -77,7 +106,7 @@ export function OrderPage({
   const [newPhone, setNewPhone] = useState('')
   const [newEmail, setNewEmail] = useState('')
 
-  // Submit state
+  // Payment/submit state
   const [orderResult, setOrderResult] = useState<{
     totalAmount: number
     swishQrCode?: string
@@ -93,26 +122,37 @@ export function OrderPage({
   )
   const hasItems = Object.values(quantities).some((q) => q > 0)
 
-  const handleLookup = async () => {
-    if (!customerNumber.trim()) return
-    setLookupLoading(true)
-    setLookupError('')
-
-    try {
-      const res = await fetch(
-        `/api/bestall/${slug}/customer?customerNumber=${encodeURIComponent(customerNumber.trim())}`
-      )
-      if (res.ok) {
-        const data = await res.json()
-        setLookupResult(data)
-      } else {
-        setLookupError('Kundnumret hittades inte. Kontrollera och försök igen.')
+  // Debounced search
+  const handleSearch = useCallback(
+    async (q: string) => {
+      setSearchQuery(q)
+      if (q.trim().length < 2) {
+        setSearchResults([])
+        return
       }
-    } catch {
-      setLookupError('Något gick fel. Försök igen.')
-    } finally {
-      setLookupLoading(false)
-    }
+      setSearchLoading(true)
+      try {
+        const res = await fetch(
+          `/api/bestall/${slug}/search?q=${encodeURIComponent(q.trim())}`
+        )
+        if (res.ok) {
+          const data = await res.json()
+          setSearchResults(data.results)
+        }
+      } catch {
+        // ignore
+      } finally {
+        setSearchLoading(false)
+      }
+    },
+    [slug]
+  )
+
+  const selectCustomer = (customer: SearchResult) => {
+    setSelectedCustomer(customer)
+    setConfirmEmail(customer.email || '')
+    setConfirmPhone(customer.phone || '')
+    setSearchResults([])
   }
 
   const handleSubmitOrder = async () => {
@@ -125,8 +165,10 @@ export function OrderPage({
 
     const body: Record<string, unknown> = { items }
 
-    if (mode === 'existing' && lookupResult) {
-      body.customerNumber = lookupResult.customerNumber
+    if (selectedCustomer) {
+      body.customerId = selectedCustomer.id
+      body.customerEmail = confirmEmail.trim() || undefined
+      body.customerPhone = confirmPhone.trim() || undefined
     } else if (mode === 'new') {
       body.newCustomer = {
         name: newName.trim(),
@@ -148,7 +190,7 @@ export function OrderPage({
       if (res.ok) {
         const data = await res.json()
         setOrderResult(data)
-        setStep('summary')
+        setStep('payment')
       } else {
         const err = await res.json().catch(() => ({}))
         setSubmitError(err.error || 'Något gick fel. Försök igen.')
@@ -161,13 +203,14 @@ export function OrderPage({
   }
 
   const canProceedFromIdentify =
-    (mode === 'existing' && lookupResult) ||
+    selectedCustomer ||
     (mode === 'new' && newName.trim() && newStreet.trim() && newCity.trim())
 
   // ── Step 1: Products ──
   if (step === 'products') {
     return (
       <div className="space-y-6">
+        {/* Welcome + campaign info */}
         <div>
           <h2 className="text-2xl font-bold">
             Välkommen till {clubName}s försäljning!
@@ -178,24 +221,59 @@ export function OrderPage({
           </p>
         </div>
 
+        {/* Campaign dates */}
+        <div className="flex flex-wrap gap-4 text-sm">
+          <div className="flex items-center gap-2 text-gray-600">
+            <CalendarDays className="h-4 w-4" />
+            <span>
+              Försäljning: {formatDate(salesStart)} &ndash;{' '}
+              {formatDate(salesEnd)}
+            </span>
+          </div>
+          {(deliveryStart || deliveryEnd) && (
+            <div className="flex items-center gap-2 text-gray-600">
+              <Truck className="h-4 w-4" />
+              <span>
+                Leverans:{' '}
+                {deliveryStart && deliveryEnd
+                  ? `${formatDate(deliveryStart)} – ${formatDate(deliveryEnd)}`
+                  : deliveryStart
+                    ? `fr.o.m. ${formatDate(deliveryStart)}`
+                    : `senast ${formatDate(deliveryEnd!)}`}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Product cards */}
         <div className="space-y-3">
           {products.map((product) => (
             <Card key={product.id}>
               <CardContent className="pt-4">
                 <div className="flex items-center gap-4">
-                  {product.imageUrl && (
+                  {product.imagePath ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={`/api/uploads/${product.imageUrl}`}
+                      src={`/api/uploads/${product.imagePath}`}
                       alt={product.name}
                       className="w-16 h-16 object-cover rounded"
                     />
+                  ) : (
+                    <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">
+                      Bild
+                    </div>
                   )}
                   <div className="flex-1">
                     <p className="font-semibold">{product.name}</p>
                     {product.size && (
                       <p className="text-sm text-gray-500">{product.size}</p>
                     )}
-                    <p className="text-sm font-medium">
+                    {product.description && (
+                      <p className="text-xs text-gray-400 line-clamp-1">
+                        {product.description}
+                      </p>
+                    )}
+                    <p className="text-sm font-medium mt-0.5">
                       {formatCurrency(product.price)}
                     </p>
                   </div>
@@ -242,7 +320,9 @@ export function OrderPage({
             <div className="max-w-2xl mx-auto flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Totalt</p>
-                <p className="text-xl font-bold">{formatCurrency(totalAmount)}</p>
+                <p className="text-xl font-bold">
+                  {formatCurrency(totalAmount)}
+                </p>
               </div>
               <Button size="lg" onClick={() => setStep('identify')}>
                 <ShoppingBag className="h-4 w-4 mr-2" />
@@ -269,22 +349,27 @@ export function OrderPage({
           </button>
           <h2 className="text-2xl font-bold">Dina uppgifter</h2>
           <p className="text-gray-600 mt-1">
-            Har du beställt förut? Ange ditt kundnummer. Annars, fyll i dina
-            uppgifter.
+            Sök efter ditt kundnummer eller din adress, eller registrera dig som
+            ny kund.
           </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <button
             className={`p-4 rounded-lg border-2 text-left transition-colors ${
-              mode === 'existing'
+              mode === 'search'
                 ? 'border-green-600 bg-green-50'
                 : 'border-gray-200 hover:border-gray-300'
             }`}
-            onClick={() => setMode('existing')}
+            onClick={() => {
+              setMode('search')
+              setSelectedCustomer(null)
+            }}
           >
-            <p className="font-semibold">Jag har ett kundnummer</p>
-            <p className="text-sm text-gray-600">T.ex. {customerPrefix}-10001</p>
+            <p className="font-semibold">Jag har beställt förut</p>
+            <p className="text-sm text-gray-600">
+              Sök på kundnummer, namn eller adress
+            </p>
           </button>
           <button
             className={`p-4 rounded-lg border-2 text-left transition-colors ${
@@ -292,44 +377,110 @@ export function OrderPage({
                 ? 'border-green-600 bg-green-50'
                 : 'border-gray-200 hover:border-gray-300'
             }`}
-            onClick={() => setMode('new')}
+            onClick={() => {
+              setMode('new')
+              setSelectedCustomer(null)
+            }}
           >
             <p className="font-semibold">Jag är ny kund</p>
             <p className="text-sm text-gray-600">Fyll i dina uppgifter</p>
           </button>
         </div>
 
-        {mode === 'existing' && (
+        {/* Search mode */}
+        {mode === 'search' && !selectedCustomer && (
           <Card>
             <CardContent className="pt-4 space-y-3">
-              <div className="flex gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder={`Kundnummer, t.ex. ${customerPrefix}-10001`}
-                  value={customerNumber}
-                  onChange={(e) => setCustomerNumber(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
+                  className="pl-10"
+                  placeholder={`Sök på kundnummer (${customerPrefix}-10001), namn eller gatuadress...`}
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
                 />
-                <Button onClick={handleLookup} disabled={lookupLoading}>
-                  {lookupLoading ? 'Söker...' : 'Sök'}
-                </Button>
               </div>
-              {lookupError && (
-                <p className="text-sm text-red-600">{lookupError}</p>
+              {searchLoading && (
+                <p className="text-sm text-gray-500">Söker...</p>
               )}
-              {lookupResult && (
-                <div className="p-3 rounded bg-green-50 text-sm">
-                  <p className="font-medium">{lookupResult.name}</p>
-                  <p className="text-gray-600">
-                    {lookupResult.address.street},{' '}
-                    {lookupResult.address.postalCode}{' '}
-                    {lookupResult.address.city}
-                  </p>
+              {searchResults.length > 0 && (
+                <div className="divide-y rounded-lg border max-h-60 overflow-y-auto">
+                  {searchResults.map((result) => (
+                    <button
+                      key={result.id}
+                      className="w-full text-left p-3 hover:bg-gray-50 transition-colors"
+                      onClick={() => selectCustomer(result)}
+                    >
+                      <p className="font-medium text-sm">{result.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {result.customerNumber} &middot;{' '}
+                        {result.address.street}, {result.address.city}
+                      </p>
+                    </button>
+                  ))}
                 </div>
               )}
+              {!searchLoading &&
+                searchQuery.length >= 2 &&
+                searchResults.length === 0 && (
+                  <p className="text-sm text-gray-500">
+                    Ingen träff. Prova ett annat sökord eller registrera dig som
+                    ny kund.
+                  </p>
+                )}
             </CardContent>
           </Card>
         )}
 
+        {/* Selected customer — confirm details */}
+        {selectedCustomer && (
+          <Card>
+            <CardContent className="pt-4 space-y-4">
+              <div className="p-3 rounded bg-green-50">
+                <p className="font-medium">{selectedCustomer.name}</p>
+                <p className="text-sm text-gray-600">
+                  {selectedCustomer.customerNumber} &middot;{' '}
+                  {selectedCustomer.address.street},{' '}
+                  {selectedCustomer.address.postalCode}{' '}
+                  {selectedCustomer.address.city}
+                </p>
+              </div>
+              <p className="text-sm font-medium">
+                Bekräfta dina kontaktuppgifter:
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">E-post</Label>
+                  <Input
+                    type="email"
+                    value={confirmEmail}
+                    onChange={(e) => setConfirmEmail(e.target.value)}
+                    placeholder="din@email.se"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Telefon</Label>
+                  <Input
+                    value={confirmPhone}
+                    onChange={(e) => setConfirmPhone(e.target.value)}
+                    placeholder="070-123 45 67"
+                  />
+                </div>
+              </div>
+              <button
+                className="text-xs text-gray-400 hover:text-gray-600"
+                onClick={() => {
+                  setSelectedCustomer(null)
+                  setSearchQuery('')
+                }}
+              >
+                Inte du? Sök igen
+              </button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* New customer form */}
         {mode === 'new' && (
           <Card>
             <CardContent className="pt-4 space-y-3">
@@ -411,7 +562,59 @@ export function OrderPage({
     )
   }
 
-  // ── Step 3: Summary ──
+  // ── Step 3: Payment ──
+  if (step === 'payment' && orderResult) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold">Betala med Swish</h2>
+          <p className="text-gray-600 mt-1">
+            Skanna QR-koden nedan med din Swish-app för att betala.
+          </p>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6 text-center space-y-4">
+            <div>
+              <p className="text-sm text-gray-600">Att betala</p>
+              <p className="text-3xl font-bold">
+                {formatCurrency(orderResult.totalAmount)}
+              </p>
+            </div>
+
+            {orderResult.swishQrCode && (
+              <div className="space-y-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={orderResult.swishQrCode}
+                  alt="Swish QR-kod"
+                  className="w-48 h-48 mx-auto"
+                />
+                <p className="text-xs text-gray-500">
+                  Öppna Swish-appen och skanna koden
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Button
+          size="lg"
+          className="w-full"
+          onClick={() => setStep('summary')}
+        >
+          <CheckCircle className="h-4 w-4 mr-2" />
+          Jag har betalat
+        </Button>
+
+        <p className="text-center text-xs text-gray-400">
+          Tryck på knappen ovan när du har genomfört din Swish-betalning.
+        </p>
+      </div>
+    )
+  }
+
+  // ── Step 4: Summary ──
   if (step === 'summary' && orderResult) {
     return (
       <div className="space-y-6">
@@ -421,8 +624,21 @@ export function OrderPage({
             Tack för din beställning, {orderResult.customerName}!
           </h2>
           <p className="text-gray-600 mt-1">
-            Din beställning är registrerad och vi ser fram emot att leverera
-            till dig.
+            Din beställning är registrerad och bekräftad.
+            {confirmEmail && (
+              <>
+                {' '}
+                En bekräftelse har skickats till{' '}
+                <span className="font-medium">{confirmEmail}</span>.
+              </>
+            )}
+            {!confirmEmail && newEmail && (
+              <>
+                {' '}
+                En bekräftelse har skickats till{' '}
+                <span className="font-medium">{newEmail}</span>.
+              </>
+            )}
           </p>
         </div>
 
@@ -449,38 +665,23 @@ export function OrderPage({
           </CardContent>
         </Card>
 
-        {/* Payment */}
-        {orderResult.swishQrCode && (
-          <Card>
-            <CardContent className="pt-6 text-center space-y-3">
-              <h3 className="font-semibold">Betala med Swish</h3>
-              <img
-                src={orderResult.swishQrCode}
-                alt="Swish QR-kod"
-                className="w-48 h-48 mx-auto"
-              />
-              <p className="text-sm text-gray-500">
-                Skanna QR-koden med din Swish-app
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Delivery info */}
         {(deliveryStart || deliveryEnd) && (
           <Card>
             <CardContent className="pt-6">
-              <h3 className="font-semibold mb-2">Leveransinformation</h3>
+              <h3 className="font-semibold mb-2 flex items-center gap-2">
+                <Truck className="h-5 w-5" /> Leveransinformation
+              </h3>
               <p className="text-gray-600">
                 {deliveryStart && deliveryEnd ? (
                   <>
                     Leverans sker mellan{' '}
                     <span className="font-medium">
-                      {formatDate(deliveryStart)}
+                      {formatDateLong(deliveryStart)}
                     </span>{' '}
                     och{' '}
                     <span className="font-medium">
-                      {formatDate(deliveryEnd)}
+                      {formatDateLong(deliveryEnd)}
                     </span>
                     .
                   </>
@@ -488,7 +689,7 @@ export function OrderPage({
                   <>
                     Leverans börjar{' '}
                     <span className="font-medium">
-                      {formatDate(deliveryStart)}
+                      {formatDateLong(deliveryStart)}
                     </span>
                     .
                   </>
@@ -496,7 +697,7 @@ export function OrderPage({
                   <>
                     Leverans senast{' '}
                     <span className="font-medium">
-                      {formatDate(deliveryEnd!)}
+                      {formatDateLong(deliveryEnd!)}
                     </span>
                     .
                   </>

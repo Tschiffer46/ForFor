@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateCustomerNumber } from '@/lib/customer-number'
 import { calculateOrderItems, generateOrderSwishQR } from '@/lib/order'
+import { sendOrderConfirmation } from '@/lib/email'
 import { revalidatePath } from 'next/cache'
 
 interface OrderBody {
+  customerId?: string
   customerNumber?: string
+  customerEmail?: string
+  customerPhone?: string
   newCustomer?: {
     name: string
     street: string
@@ -32,7 +36,7 @@ export async function POST(
       )
     }
 
-    if (!body.customerNumber && !body.newCustomer) {
+    if (!body.customerId && !body.customerNumber && !body.newCustomer) {
       return NextResponse.json(
         { error: 'Kundnummer eller ny kund krävs' },
         { status: 400 }
@@ -71,9 +75,42 @@ export async function POST(
 
     let customerId: string
     let customerSubscription = false
+    let customerEmail: string | null = null
     let teamId: string
 
-    if (body.customerNumber) {
+    if (body.customerId) {
+      // 3a. Direct customer ID from search
+      const customer = await prisma.customer.findFirst({
+        where: {
+          id: body.customerId,
+          address: {
+            streetRef: {
+              district: { team: { lagGroup: { clubId: club.id } } },
+            },
+          },
+        },
+        include: {
+          address: {
+            include: { streetRef: { include: { district: true } } },
+          },
+        },
+      })
+      if (!customer) {
+        return NextResponse.json({ error: 'Kund hittades inte' }, { status: 404 })
+      }
+      customerId = customer.id
+      customerSubscription = customer.subscription
+      teamId = customer.address.streetRef.district.teamId
+
+      // Update contact info if provided
+      const updates: Record<string, string> = {}
+      if (body.customerEmail) updates.email = body.customerEmail
+      if (body.customerPhone) updates.phone = body.customerPhone
+      if (Object.keys(updates).length > 0) {
+        await prisma.customer.update({ where: { id: customerId }, data: updates })
+      }
+      customerEmail = body.customerEmail || customer.email
+    } else if (body.customerNumber) {
       // 3a. Lookup existing customer
       const customer = await prisma.customer.findUnique({
         where: { customerNumber: body.customerNumber },
@@ -116,6 +153,15 @@ export async function POST(
       customerId = customer.id
       customerSubscription = customer.subscription
       teamId = customer.address.streetRef.district.team.id
+
+      // Update contact info if provided
+      const updates: Record<string, string> = {}
+      if (body.customerEmail) updates.email = body.customerEmail
+      if (body.customerPhone) updates.phone = body.customerPhone
+      if (Object.keys(updates).length > 0) {
+        await prisma.customer.update({ where: { id: customerId }, data: updates })
+      }
+      customerEmail = body.customerEmail || customer.email
     } else {
       // 3b. Create new customer
       const nc = body.newCustomer!
@@ -231,6 +277,7 @@ export async function POST(
 
       customerId = customer.id
       customerSubscription = false
+      customerEmail = nc.email || null
     }
 
     // 4. Calculate order total and generate Swish QR
@@ -266,17 +313,32 @@ export async function POST(
     revalidatePath('/admin/bestallningar')
     revalidatePath('/admin/kunder')
 
-    // 8. Return response
+    const orderItems = order.items.map((item) => ({
+      name: item.product.name,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    }))
+
+    // 8. Send confirmation email (async, don't block response)
+    if (customerEmail) {
+      sendOrderConfirmation({
+        to: customerEmail,
+        customerName: order.customer.name,
+        clubName: club.name,
+        items: orderItems,
+        totalAmount: order.totalAmount,
+        deliveryStart: campaign.deliveryStart?.toISOString(),
+        deliveryEnd: campaign.deliveryEnd?.toISOString(),
+      }).catch((err) => console.error('Error sending order email:', err))
+    }
+
+    // 9. Return response
     return NextResponse.json({
       orderId: order.id,
       totalAmount: order.totalAmount,
       swishQrCode: order.swishQrCode,
       customerName: order.customer.name,
-      items: order.items.map((item) => ({
-        name: item.product.name,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-      })),
+      items: orderItems,
     })
   } catch (error) {
     console.error('Error creating web order:', error)

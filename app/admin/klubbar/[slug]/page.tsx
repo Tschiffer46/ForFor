@@ -8,6 +8,7 @@ import { MapPin, Globe, Mail, Phone, User } from 'lucide-react'
 import { ClubLogo } from '@/components/admin/club-logo'
 import { ClubColors } from '@/components/admin/club-colors'
 import { ClubKeyPersons } from '@/components/admin/club-key-persons'
+import { ClubAdmins } from '@/components/admin/club-admins'
 import { ClubPrefix } from '@/components/admin/club-prefix'
 
 interface Props {
@@ -45,6 +46,12 @@ export default async function ClubDetailPage({ params }: Props) {
   })
 
   if (!club) return notFound()
+
+  const clubAdmins = await prisma.user.findMany({
+    where: { clubId: club.id, role: 'CLUB_ADMIN' },
+    select: { id: true, name: true, username: true, email: true, phone: true },
+    orderBy: { name: 'asc' },
+  })
 
   const totalOrders = await prisma.order.count({
     where: { team: { lagGroup: { clubId: club.id } } },
@@ -137,6 +144,17 @@ export default async function ClubDetailPage({ params }: Props) {
         <CardHeader><CardTitle>Nyckelpersoner</CardTitle></CardHeader>
         <CardContent>
           <ClubKeyPersons slug={club.slug} keyPersons={club.keyPersons} />
+        </CardContent>
+      </Card>
+
+      {/* Club Admins */}
+      <Card>
+        <CardHeader><CardTitle>Klubbadministratörer</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-500 mb-4">
+            Dessa personer kan logga in och hantera klubbens beställningar, kunder och lag.
+          </p>
+          <ClubAdmins slug={club.slug} admins={clubAdmins} />
         </CardContent>
       </Card>
 

@@ -52,7 +52,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           </div>
           {product.description && <p className="text-gray-600 mt-1">{product.description}</p>}
         </div>
-        <ProduktForm product={product} trigger={<Button variant="outline">Redigera</Button>} />
+        <ProduktForm product={{ ...product, images: product.images }} trigger={<Button variant="outline">Redigera</Button>} />
       </div>
 
       {/* Product info grid */}
